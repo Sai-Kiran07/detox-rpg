@@ -4,14 +4,16 @@ import { Navbar } from './components/Navbar.jsx';
 import { LandingPage } from './components/LandingPage/LandingPage.jsx';
 import { QuestList } from './components/QuestBoard/QuestList.jsx';
 import { ShopList } from './components/Shop/ShopList.jsx';
+import { InventoryView } from './components/Inventory/InventoryView.jsx';
 import { StatsView } from './components/Stats/StatsView.jsx';
+import { HistoryView } from './components/History/HistoryView.jsx';
 import { SettingsView } from './components/Settings/SettingsView.jsx';
 import { FloatingRewards } from './components/FloatingRewards.jsx';
 import { LevelUpModal } from './components/LevelUpModal.jsx';
-import { Ticket, Trophy, Flame } from 'lucide-react';
+import { Ticket, Trophy, Flame, Zap, Shield } from 'lucide-react';
 
 const MainLayout = () => {
-  const { activeTab, profile, crtEnabled, getComboMultiplier } = useGame();
+  const { activeTab, setActiveTab, profile, crtEnabled, getComboMultiplier } = useGame();
   const combo = getComboMultiplier(profile.streak);
 
   const renderActiveView = () => {
@@ -22,9 +24,13 @@ const MainLayout = () => {
         return <QuestList />;
       case 'shop':
         return <ShopList />;
+      case 'inventory':
+        return <InventoryView />;
       case 'attributes':
       case 'leaderboard':
         return <StatsView />;
+      case 'history':
+        return <HistoryView />;
       case 'settings':
         return <SettingsView />;
       default:
@@ -37,7 +43,9 @@ const MainLayout = () => {
       case 'landing': return 'HACKATHON PROJECT OVERVIEW';
       case 'missions': return 'ARCADE MISSIONS & STAGES';
       case 'shop': return 'TICKET PRIZE COUNTER';
+      case 'inventory': return 'P1 INVENTORY & VAULT';
       case 'attributes': return 'P1 ATTRIBUTE MATRIX';
+      case 'history': return 'CAREER AUDIT & PROGRESS METRICS';
       case 'leaderboard': return 'HIGH SCORE LEADERBOARD';
       case 'settings': return 'CABINET PREFERENCES';
       default: return 'ARCADE LIFE';
@@ -87,7 +95,33 @@ const MainLayout = () => {
           </div>
 
           {/* Quick Glances */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            {/* Unspent Skill Points Alert */}
+            {profile.unspentSkillPoints > 0 && (
+              <button
+                onClick={() => setActiveTab('attributes')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: 'rgba(250, 204, 21, 0.18)',
+                  border: '1px solid #facc15',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  color: '#fef08a',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  animation: 'arcadeBlink 1.5s infinite'
+                }}
+                title="Click to allocate skill points in Character Sheet"
+              >
+                <Zap size={13} color="#facc15" />
+                <span className="font-arcade" style={{ fontSize: '0.62rem' }}>
+                  +{profile.unspentSkillPoints} SKILL PTS
+                </span>
+              </button>
+            )}
+
             {/* Score Ticker */}
             <div style={{
               display: 'flex',
