@@ -30,7 +30,8 @@ export const Navbar = () => {
     toggleCrt, 
     isMuted, 
     toggleMute,
-    getComboMultiplier
+    getComboMultiplier,
+    isServerOnline
   } = useGame();
 
   const xpNeeded = calculateXpRequired(profile.level);
@@ -363,7 +364,37 @@ export const Navbar = () => {
         })}
       </nav>
 
-      {/* 4. FOOTER CONTROLS: CRT & AUDIO TOGGLES */}
+      {/* 4. BACKEND CONNECTION PILL */}
+      <div style={{
+        padding: '0.4rem 0.85rem',
+        margin: '0.25rem 0.85rem 0.4rem',
+        borderRadius: '6px',
+        background: isServerOnline ? 'rgba(16, 185, 129, 0.12)' : 'rgba(250, 204, 21, 0.1)',
+        border: isServerOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(250, 204, 21, 0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: '0.62rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            background: isServerOnline ? '#10b981' : '#facc15',
+            boxShadow: isServerOnline ? '0 0 8px #10b981' : '0 0 8px #facc15',
+            display: 'inline-block'
+          }} />
+          <span className="font-arcade" style={{ color: isServerOnline ? '#34d399' : '#fef08a', fontSize: '0.52rem' }}>
+            PORT 8080
+          </span>
+        </div>
+        <span style={{ fontSize: '0.58rem', color: isServerOnline ? '#6ee7b7' : '#fde047', fontWeight: 700 }}>
+          {isServerOnline ? 'ONLINE' : 'CONNECTING...'}
+        </span>
+      </div>
+
+      {/* 5. FOOTER CONTROLS: CRT & AUDIO TOGGLES */}
       <div style={{
         padding: '0.75rem 0.85rem',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',

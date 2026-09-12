@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../services/soundEffects.js';
+import { api } from '../services/api.js';
 
 const GameContext = createContext();
 
@@ -27,351 +28,53 @@ export const getRankTier = (level) => {
 };
 
 const STORAGE_KEYS = {
-  PROFILE: 'arcade_profile_v3',
-  MISSIONS: 'arcade_missions_v3',
-  PRIZES: 'arcade_prizes_v3',
-  INVENTORY: 'arcade_inventory_v3',
-  HISTORY: 'arcade_history_v3',
   CRT: 'arcade_crt_enabled',
 };
 
-// Initial Retro Starter Missions
-const INITIAL_MISSIONS = [
-  {
-    id: 'm-1',
-    title: 'Code the Cyber-Algorithm Matrix',
-    description: 'Solve 2 complex graph or dynamic programming challenges with zero compilation bugs.',
-    category: 'Academics',
-    stage: 'Expert',
-    priority: 'high',
-    recurrence: 'daily',
-    attribute: 'INT',
-    attributeGain: 3,
-    rewardXp: 220,
-    rewardScore: 500,
-    rewardTickets: 60,
-    completed: false,
-    deadline: 'Tonight, 22:00',
-    subtasks: [
-      { id: 'st-1', text: 'Solve Graph BFS/DFS Problem', completed: true },
-      { id: 'st-2', text: 'Solve DP Knapsack Variation', completed: false },
-      { id: 'st-3', text: 'Document space & time complexity', completed: false },
-    ],
-  },
-  {
-    id: 'm-2',
-    title: 'Titan Heavy Lift Circuit',
-    description: '45-minute resistance training and core conditioning at the iron gym.',
-    category: 'Fitness',
-    stage: 'Intermediate',
-    priority: 'normal',
-    recurrence: 'daily',
-    attribute: 'STR',
-    attributeGain: 2,
-    rewardXp: 160,
-    rewardScore: 350,
-    rewardTickets: 40,
-    completed: false,
-    deadline: 'Daily Stage',
-    subtasks: [
-      { id: 'st-4', text: 'Bench press / Chest press 4 sets', completed: false },
-      { id: 'st-5', text: 'Barbell squats or leg press 4 sets', completed: false },
-    ],
-  },
-  {
-    id: 'm-3',
-    title: 'Deep Work Trance (Pomodoro)',
-    description: 'Execute 2 continuous 50-minute laser-focused study sprints without checking phone.',
-    category: 'Focus',
-    stage: 'Intermediate',
-    priority: 'high',
-    recurrence: 'daily',
-    attribute: 'END',
-    attributeGain: 2,
-    rewardXp: 150,
-    rewardScore: 300,
-    rewardTickets: 35,
-    completed: false,
-    deadline: 'Afternoon',
-    subtasks: [],
-  },
-  {
-    id: 'm-4',
-    title: 'Hackathon Syndicate Presentation',
-    description: 'Deliver the 3-minute project pitch deck confidently to the guild evaluators.',
-    category: 'Social',
-    stage: 'Boss',
-    priority: 'high',
-    recurrence: 'weekly',
-    attribute: 'CHA',
-    attributeGain: 4,
-    rewardXp: 380,
-    rewardScore: 1000,
-    rewardTickets: 120,
-    completed: false,
-    deadline: 'Saturday Demo',
-    subtasks: [
-      { id: 'st-6', text: 'Rehearse slide transitions', completed: false },
-      { id: 'st-7', text: 'Test screen recording & demo video', completed: false },
-    ],
-  },
-  {
-    id: 'm-5',
-    title: 'Speed Clean Quarters',
-    description: 'Tidy workstation, vacuum room, and organize desk within 15 minutes.',
-    category: 'Habits',
-    stage: 'Novice',
-    priority: 'low',
-    recurrence: 'daily',
-    attribute: 'AGI',
-    attributeGain: 1,
-    rewardXp: 80,
-    rewardScore: 150,
-    rewardTickets: 20,
-    completed: true,
-    deadline: 'Cleared',
-    subtasks: [],
-  },
-];
-
-// Initial Arcade Prize Counter Items with Categories & Perks
-const INITIAL_PRIZES = [
-  {
-    id: 'p-shield',
-    title: 'Streak Freeze Shield',
-    description: 'Arcade insurance matrix. Automatically shields your combo streak if you miss a day.',
-    cost: 80,
-    icon: 'Shield',
-    tier: 'Rare',
-    category: 'buff',
-    usable: true,
-    effect: '+1 Streak Shield',
-  },
-  {
-    id: 'p-visor',
-    title: 'Cybernetic Focus Visor',
-    description: 'Equipable tactical optics. Augments computational analysis with +4 INT passive boost.',
-    cost: 160,
-    icon: 'Cpu',
-    tier: 'Epic',
-    category: 'gear',
-    slot: 'head',
-    statBonus: { INT: 4 },
-  },
-  {
-    id: 'p-gauntlet',
-    title: 'Titan Power Gauntlet',
-    description: 'Equipable pneumatic exoskeleton. Boosts physical output with +3 STR and +2 AGI.',
-    cost: 180,
-    icon: 'Shield',
-    tier: 'Epic',
-    category: 'gear',
-    slot: 'hands',
-    statBonus: { STR: 3, AGI: 2 },
-  },
-  {
-    id: 'p-1',
-    title: '1-Hour Retro Gaming Pass',
-    description: '60 minutes of guilt-free video game leisure or arcade speedrunning.',
-    cost: 75,
-    icon: 'Gamepad2',
-    tier: 'Rare',
-    category: 'treat',
-    redeemable: true,
-  },
-  {
-    id: 'p-2',
-    title: 'High-Octane Nitro Matcha / Espresso',
-    description: 'Gourmet handcrafted coffee or boba tea power-up voucher.',
-    cost: 45,
-    icon: 'Coffee',
-    tier: 'Uncommon',
-    category: 'treat',
-    redeemable: true,
-  },
-  {
-    id: 'p-3',
-    title: 'Arcade Champion Pizza Feast',
-    description: 'Order your favorite loaded pizza banquet after conquering all weekly stages.',
-    cost: 200,
-    icon: 'UtensilsCrossed',
-    tier: 'Legendary',
-    category: 'treat',
-    redeemable: true,
-  },
-  {
-    id: 'p-4',
-    title: 'Restorative Nature Walk (Mana Recharge)',
-    description: '25-minute unplugged stroll through the campus botanical park.',
-    cost: 30,
-    icon: 'Trees',
-    tier: 'Common',
-    category: 'treat',
-    redeemable: true,
-  },
-  {
-    id: 'p-elixir',
-    title: 'Hyper Overclock Elixir',
-    description: 'Consumable stimulant. Grants +100 bonus instant XP to accelerate your next rank.',
-    cost: 50,
-    icon: 'Sparkles',
-    tier: 'Uncommon',
-    category: 'buff',
-    usable: true,
-    effect: '+100 Instant XP',
-  },
-];
-
-const INITIAL_PROFILE = {
-  name: 'PLAYER ONE',
-  callsign: 'NEO-RAIDER',
-  level: 3,
-  xp: 180,
-  score: 4250,
-  tickets: 185,
-  unspentSkillPoints: 3, // Player can allocate to attributes
-  hp: 90,
-  maxHp: 100,
-  energy: 85,
-  maxEnergy: 100,
-  streak: 5,
-  streakShields: 1, // Start with 1 shield
-  lastCheckInDate: null,
-  avatar: '🕹️',
-  attributes: {
-    INT: 14, // Intellect (+1% XP gain per pt)
-    STR: 11, // Strength (+0.8% score bonus & crit rolls)
-    AGI: 8,  // Agility (combo bonus enhancer)
-    END: 12, // Endurance (energy cap & streak resilience)
-    CHA: 9,  // Charisma (shop haggle discount %)
-  },
-};
-
-const INITIAL_INVENTORY = [
-  {
-    id: 'inv-init-1',
-    title: 'Cybernetic Focus Visor',
-    description: 'Equipable tactical optics. Augments computational analysis with +4 INT passive boost.',
-    category: 'gear',
-    slot: 'head',
-    statBonus: { INT: 4 },
-    tier: 'Epic',
-    icon: 'Cpu',
-    equipped: true,
-    acquiredAt: new Date(Date.now() - 86400000 * 2).toLocaleDateString(),
-  },
-  {
-    id: 'inv-init-2',
-    title: 'Streak Freeze Shield',
-    description: 'Arcade insurance matrix. Automatically shields your combo streak if you miss a day.',
-    category: 'buff',
-    usable: true,
-    effect: '+1 Streak Shield',
-    tier: 'Rare',
-    icon: 'Shield',
-    acquiredAt: new Date(Date.now() - 86400000).toLocaleDateString(),
-  },
-  {
-    id: 'inv-init-3',
-    title: 'High-Octane Nitro Matcha / Espresso',
-    description: 'Gourmet handcrafted coffee or boba tea power-up voucher.',
-    category: 'treat',
-    redeemable: true,
-    redeemed: false,
-    tier: 'Uncommon',
-    icon: 'Coffee',
-    acquiredAt: new Date().toLocaleDateString(),
-  },
-];
-
-const INITIAL_HISTORY = [
-  {
-    id: 'h-1',
-    type: 'stage_clear',
-    title: 'Speed Clean Quarters',
-    category: 'Habits',
-    details: 'Completed Novice Stage in record time.',
-    xpEarned: 80,
-    scoreEarned: 150,
-    ticketsEarned: 20,
-    attributeGained: '+1 AGI',
-    timestamp: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: 'h-2',
-    type: 'prize_claimed',
-    title: 'High-Octane Nitro Matcha / Espresso',
-    details: 'Redeemed at Prize Counter for 45 Tickets.',
-    ticketsSpent: 45,
-    timestamp: new Date(Date.now() - 43200000).toISOString(),
-  },
-  {
-    id: 'h-3',
-    type: 'daily_checkin',
-    title: 'Daily Check-In: Day 5 Streak',
-    details: 'Maintained consecutive arcade login streak.',
-    ticketsEarned: 50,
-    xpEarned: 50,
-    timestamp: new Date().toISOString(),
-  },
-];
-
 export const GameProvider = ({ children }) => {
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return {
-        ...INITIAL_PROFILE,
-        ...parsed,
-        attributes: { ...INITIAL_PROFILE.attributes, ...(parsed.attributes || {}) },
-      };
-    }
-    const v2 = localStorage.getItem('arcade_profile_v2');
-    if (v2) {
-      const parsed2 = JSON.parse(v2);
-      return {
-        ...INITIAL_PROFILE,
-        ...parsed2,
-        unspentSkillPoints: 3,
-        streakShields: 1,
-        attributes: { ...INITIAL_PROFILE.attributes, ...(parsed2.attributes || {}) },
-      };
-    }
-    return INITIAL_PROFILE;
+    const cached = localStorage.getItem('arcade_profile_v3');
+    return cached ? JSON.parse(cached) : {
+      name: 'PLAYER ONE',
+      callsign: 'NEO-RAIDER',
+      level: 3,
+      xp: 180,
+      score: 4250,
+      tickets: 185,
+      unspentSkillPoints: 3,
+      hp: 90,
+      maxHp: 100,
+      energy: 85,
+      maxEnergy: 100,
+      streak: 5,
+      streakShields: 1,
+      lastCheckInDate: null,
+      avatar: '🕹️',
+      attributes: { INT: 14, STR: 11, AGI: 8, END: 12, CHA: 9 },
+    };
   });
 
   const [missions, setMissions] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
-    if (saved) return JSON.parse(saved);
-    const v2 = localStorage.getItem('arcade_missions_v2');
-    if (v2) {
-      const parsed = JSON.parse(v2);
-      return parsed.map((m) => ({
-        ...m,
-        priority: m.priority || 'normal',
-        recurrence: m.recurrence || 'daily',
-        subtasks: m.subtasks || [],
-      }));
-    }
-    return INITIAL_MISSIONS;
+    const cached = localStorage.getItem('arcade_missions_v3');
+    return cached ? JSON.parse(cached) : [];
   });
 
   const [prizes, setPrizes] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PRIZES);
-    return saved ? JSON.parse(saved) : INITIAL_PRIZES;
+    const cached = localStorage.getItem('arcade_prizes_v3');
+    return cached ? JSON.parse(cached) : [];
   });
 
   const [inventory, setInventory] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-    return saved ? JSON.parse(saved) : INITIAL_INVENTORY;
+    const cached = localStorage.getItem('arcade_inventory_v3');
+    return cached ? JSON.parse(cached) : [];
   });
 
   const [historyLog, setHistoryLog] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.HISTORY);
-    return saved ? JSON.parse(saved) : INITIAL_HISTORY;
+    const cached = localStorage.getItem('arcade_history_v3');
+    return cached ? JSON.parse(cached) : [];
   });
 
+  const [isServerOnline, setIsServerOnline] = useState(false);
   const [activeTab, setActiveTab] = useState('landing');
   const [crtEnabled, setCrtEnabled] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CRT);
@@ -381,44 +84,55 @@ export const GameProvider = ({ children }) => {
   const [floatingRewards, setFloatingRewards] = useState([]);
   const [levelUpData, setLevelUpData] = useState(null);
 
-  // Sync to local storage
+  // 1. Initial Data Fetch from Backend (http://localhost:8080)
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
-  }, [profile]);
+    const unsubscribe = api.subscribeStatus((online) => {
+      setIsServerOnline(online);
+    });
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(missions));
-  }, [missions]);
+    const loadBackendData = async () => {
+      try {
+        const [profData, misData, invData, histData, przData] = await Promise.all([
+          api.getProfile(),
+          api.getMissions(),
+          api.getInventory(),
+          api.getHistory(),
+          api.getPrizes(),
+        ]);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PRIZES, JSON.stringify(prizes));
-  }, [prizes]);
+        if (profData) setProfile(profData);
+        if (misData) setMissions(misData);
+        if (invData) setInventory(invData);
+        if (histData) setHistoryLog(histData);
+        if (przData) setPrizes(przData);
+      } catch (err) {
+        console.warn('Backend load notice (using resilient cache):', err);
+      }
+    };
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
-  }, [inventory]);
+    loadBackendData();
+    return () => unsubscribe();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(historyLog));
-  }, [historyLog]);
-
+  // Save CRT setting
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CRT, JSON.stringify(crtEnabled));
   }, [crtEnabled]);
 
-  // Log activity helper
-  const addHistoryEntry = (entry) => {
+  // Log activity helper (pushes to backend & local state)
+  const addHistoryEntry = useCallback(async (entry) => {
     const newEntry = {
       id: `h-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       timestamp: new Date().toISOString(),
       ...entry,
     };
     setHistoryLog((prev) => [newEntry, ...prev.slice(0, 99)]);
-  };
+    await api.createHistoryEntry(newEntry);
+  }, []);
 
   // Compute Effective Attributes (Base + Equipped Gear Bonuses)
   const effectiveAttributes = useMemo(() => {
-    const base = { ...profile.attributes };
+    const base = { ...(profile.attributes || { INT: 10, STR: 10, AGI: 10, END: 10, CHA: 10 }) };
     inventory
       .filter((item) => item.equipped && item.statBonus)
       .forEach((item) => {
@@ -443,22 +157,18 @@ export const GameProvider = ({ children }) => {
   }, [inventory]);
 
   // Gameplay Modifiers based on Attributes:
-  // INT: +1% XP per INT point
   const intXpMultiplier = useMemo(() => {
     return 1 + (effectiveAttributes.INT || 10) * 0.01;
   }, [effectiveAttributes.INT]);
 
-  // CHA: Haggle Discount at Shop: 0.5% per CHA point (capped at 25%)
   const chaDiscountPercent = useMemo(() => {
     return Math.min(25, Math.floor((effectiveAttributes.CHA || 10) * 0.5));
   }, [effectiveAttributes.CHA]);
 
-  // STR: Score multiplier: +0.8% score per STR point
   const strScoreMultiplier = useMemo(() => {
     return 1 + (effectiveAttributes.STR || 10) * 0.008;
   }, [effectiveAttributes.STR]);
 
-  // Calculate Combo Multiplier based on daily streak + AGI boost
   const getComboMultiplier = (streak) => {
     const agiBonus = (effectiveAttributes.AGI || 8) >= 12 ? 0.1 : 0;
     if (streak >= 14) return { mult: Number((1.5 + agiBonus).toFixed(2)), label: `SUPER COMBO x${(1.5 + agiBonus).toFixed(2)}`, color: '#f43f5e' };
@@ -553,8 +263,8 @@ export const GameProvider = ({ children }) => {
     };
   };
 
-  // 1. Complete Mission Action (with INT XP boost & STR Score boost)
-  const completeMission = (mission, e) => {
+  // 1. Complete Mission Action (Synced with Backend)
+  const completeMission = async (mission, e) => {
     if (mission.completed) return;
 
     let clickX = window.innerWidth / 2;
@@ -612,6 +322,15 @@ export const GameProvider = ({ children }) => {
       )
     );
 
+    // Sync with backend API
+    await api.completeMission(mission.id, {
+      xpEarned: finalXpGain,
+      scoreEarned: finalScoreGain,
+      ticketsEarned: mission.rewardTickets,
+    });
+
+    await api.updateProfile(updatedProfile);
+
     addHistoryEntry({
       type: 'stage_clear',
       title: mission.title,
@@ -625,7 +344,7 @@ export const GameProvider = ({ children }) => {
   };
 
   // Uncomplete mission
-  const uncompleteMission = (mission) => {
+  const uncompleteMission = async (mission) => {
     soundEffects.playClick();
     setMissions((prev) =>
       prev.map((m) =>
@@ -638,10 +357,11 @@ export const GameProvider = ({ children }) => {
           : m
       )
     );
+    await api.uncompleteMission(mission.id);
   };
 
   // Toggle Subtask
-  const toggleSubtask = (missionId, subtaskId) => {
+  const toggleSubtask = async (missionId, subtaskId) => {
     soundEffects.playClick();
     setMissions((prev) =>
       prev.map((m) => {
@@ -657,37 +377,33 @@ export const GameProvider = ({ children }) => {
         };
       })
     );
+    await api.toggleSubtask(missionId, subtaskId);
   };
 
   // Add / Forge new mission
-  const addMission = (missionData) => {
+  const addMission = async (missionData) => {
     soundEffects.playCoin();
-    const newMission = {
-      id: `m-${Date.now()}`,
-      completed: false,
-      priority: 'normal',
-      recurrence: 'daily',
-      subtasks: [],
-      ...missionData,
-    };
-    setMissions((prev) => [newMission, ...prev]);
-    return newMission;
+    const created = await api.createMission(missionData);
+    setMissions((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
+    return created;
   };
 
   // Update mission
-  const updateMission = (id, updates) => {
+  const updateMission = async (id, updates) => {
     soundEffects.playClick();
     setMissions((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    await api.updateMission(id, updates);
   };
 
   // Delete mission
-  const deleteMission = (id) => {
+  const deleteMission = async (id) => {
     soundEffects.playClick();
     setMissions((prev) => prev.filter((m) => m.id !== id));
+    await api.deleteMission(id);
   };
 
-  // 2. Buy item from Prize Counter (with Charisma Haggle Discount!)
-  const buyPrize = (prize, e) => {
+  // 2. Buy item from Prize Counter (with Charisma Haggle Discount & Backend sync)
+  const buyPrize = async (prize, e) => {
     const discountedCost = Math.max(1, Math.round(prize.cost * (1 - chaDiscountPercent / 100)));
 
     if (profile.tickets < discountedCost) {
@@ -736,6 +452,10 @@ export const GameProvider = ({ children }) => {
 
     setInventory((prev) => [newItem, ...prev]);
 
+    // Backend sync
+    await api.buyPrize(prize.id, { discountedCost, chaDiscountPercent });
+    await api.updateProfile(updatedProfile);
+
     addHistoryEntry({
       type: 'prize_claimed',
       title: prize.title,
@@ -747,24 +467,21 @@ export const GameProvider = ({ children }) => {
   };
 
   // Add custom prize
-  const addPrize = (prizeData) => {
+  const addPrize = async (prizeData) => {
     soundEffects.playCoin();
-    const newPrize = {
-      id: `p-${Date.now()}`,
-      category: 'treat',
-      ...prizeData,
-    };
-    setPrizes((prev) => [newPrize, ...prev]);
+    const created = await api.createPrize(prizeData);
+    setPrizes((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
   };
 
   // Delete prize
-  const deletePrize = (id) => {
+  const deletePrize = async (id) => {
     soundEffects.playClick();
     setPrizes((prev) => prev.filter((p) => p.id !== id));
+    await api.deletePrize(id);
   };
 
   // 3. Inventory Actions: Toggle Equip Relic / Gear
-  const toggleEquipItem = (itemId) => {
+  const toggleEquipItem = async (itemId) => {
     soundEffects.playCheckmark();
     setInventory((prev) =>
       prev.map((item) => {
@@ -778,44 +495,52 @@ export const GameProvider = ({ children }) => {
         return item;
       })
     );
+    await api.toggleEquipItem(itemId);
   };
 
   // 4. Inventory Actions: Use Consumable Buff
-  const useInventoryItem = (itemId) => {
+  const useInventoryItem = async (itemId) => {
     const targetItem = inventory.find((i) => i.id === itemId);
     if (!targetItem) return;
 
     soundEffects.playCombo();
 
+    let updatedProfile = { ...profile };
+
     if (targetItem.effect === '+1 Streak Shield' || targetItem.title.includes('Shield')) {
-      setProfile((prev) => ({ ...prev, streakShields: prev.streakShields + 1 }));
+      updatedProfile = { ...updatedProfile, streakShields: updatedProfile.streakShields + 1 };
+      setProfile(updatedProfile);
       triggerFloatingReward('+1 STREAK SHIELD!', 'score', window.innerWidth / 2, window.innerHeight / 2);
     } else if (targetItem.effect === '+100 Instant XP' || targetItem.title.includes('Elixir')) {
       const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, 100);
-      setProfile((prev) => ({
-        ...prev,
+      updatedProfile = {
+        ...updatedProfile,
         level: levelRes.level,
         callsign: levelRes.callsign,
         xp: levelRes.xp,
-        tickets: prev.tickets + levelRes.ticketBonus,
-        unspentSkillPoints: prev.unspentSkillPoints + levelRes.skillPointsBonus,
-      }));
+        tickets: updatedProfile.tickets + levelRes.ticketBonus,
+        unspentSkillPoints: updatedProfile.unspentSkillPoints + levelRes.skillPointsBonus,
+      };
+      setProfile(updatedProfile);
       triggerFloatingReward('+100 XP CONSUMED!', 'xp', window.innerWidth / 2, window.innerHeight / 2);
     } else {
       triggerFloatingReward('BUFF ACTIVATED!', 'score', window.innerWidth / 2, window.innerHeight / 2);
     }
+
+    setInventory((prev) => prev.filter((i) => i.id !== itemId));
+
+    await api.useInventoryItem(itemId);
+    await api.updateProfile(updatedProfile);
 
     addHistoryEntry({
       type: 'item_used',
       title: `Used ${targetItem.title}`,
       details: targetItem.description,
     });
-
-    setInventory((prev) => prev.filter((i) => i.id !== itemId));
   };
 
   // 5. Inventory Actions: Redeem Real-World Voucher
-  const redeemVoucher = (itemId) => {
+  const redeemVoucher = async (itemId) => {
     soundEffects.playCoin();
     setInventory((prev) =>
       prev.map((item) =>
@@ -825,28 +550,33 @@ export const GameProvider = ({ children }) => {
       )
     );
     triggerFloatingReward('VOUCHER REDEEMED! ENJOY!', 'score', window.innerWidth / 2, window.innerHeight / 2);
+    await api.redeemVoucher(itemId);
   };
 
   // 6. Character Sheet: Allocate Skill Point to Attribute
-  const allocateSkillPoint = (attributeKey) => {
+  const allocateSkillPoint = async (attributeKey) => {
     if (profile.unspentSkillPoints <= 0) {
       soundEffects.playError();
       return;
     }
     soundEffects.playCoin();
-    setProfile((prev) => ({
-      ...prev,
-      unspentSkillPoints: prev.unspentSkillPoints - 1,
+    const updated = {
+      ...profile,
+      unspentSkillPoints: profile.unspentSkillPoints - 1,
       attributes: {
-        ...prev.attributes,
-        [attributeKey]: (prev.attributes[attributeKey] || 10) + 1,
+        ...profile.attributes,
+        [attributeKey]: (profile.attributes[attributeKey] || 10) + 1,
       },
-    }));
+    };
+    setProfile(updated);
     triggerFloatingReward(`+1 ${attributeKey} UPGRADED!`, 'xp', window.innerWidth / 2, window.innerHeight / 2);
+
+    await api.allocateSkillPoint(attributeKey);
+    await api.updateProfile(updated);
   };
 
   // 7. Streak System: Claim Daily Check-In
-  const claimDailyCheckIn = () => {
+  const claimDailyCheckIn = async () => {
     const todayStr = new Date().toDateString();
     if (profile.lastCheckInDate === todayStr) {
       soundEffects.playError();
@@ -874,16 +604,20 @@ export const GameProvider = ({ children }) => {
 
     const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, xpReward);
 
-    setProfile((prev) => ({
-      ...prev,
+    const updated = {
+      ...profile,
       streak: newStreak,
       lastCheckInDate: todayStr,
-      tickets: prev.tickets + ticketReward + levelRes.ticketBonus,
+      tickets: profile.tickets + ticketReward + levelRes.ticketBonus,
       xp: levelRes.xp,
       level: levelRes.level,
       callsign: levelRes.callsign,
-      unspentSkillPoints: prev.unspentSkillPoints + levelRes.skillPointsBonus,
-    }));
+      unspentSkillPoints: profile.unspentSkillPoints + levelRes.skillPointsBonus,
+    };
+    setProfile(updated);
+
+    await api.claimDailyCheckIn();
+    await api.updateProfile(updated);
 
     addHistoryEntry({
       type: 'daily_checkin',
@@ -915,20 +649,11 @@ export const GameProvider = ({ children }) => {
 
   // Reset demo data
   const resetArcadeData = () => {
-    localStorage.removeItem(STORAGE_KEYS.PROFILE);
-    localStorage.removeItem(STORAGE_KEYS.MISSIONS);
-    localStorage.removeItem(STORAGE_KEYS.PRIZES);
-    localStorage.removeItem(STORAGE_KEYS.INVENTORY);
-    localStorage.removeItem(STORAGE_KEYS.HISTORY);
-    localStorage.removeItem('arcade_profile_v2');
-    localStorage.removeItem('arcade_missions_v2');
-    localStorage.removeItem('arcade_prizes_v2');
-    localStorage.removeItem('arcade_inventory_v2');
-    setProfile(INITIAL_PROFILE);
-    setMissions(INITIAL_MISSIONS);
-    setPrizes(INITIAL_PRIZES);
-    setInventory(INITIAL_INVENTORY);
-    setHistoryLog(INITIAL_HISTORY);
+    localStorage.removeItem('arcade_profile_v3');
+    localStorage.removeItem('arcade_missions_v3');
+    localStorage.removeItem('arcade_prizes_v3');
+    localStorage.removeItem('arcade_inventory_v3');
+    localStorage.removeItem('arcade_history_v3');
     window.location.reload();
   };
 
@@ -956,6 +681,7 @@ export const GameProvider = ({ children }) => {
         chaDiscountPercent,
         strScoreMultiplier,
         getComboMultiplier,
+        isServerOnline,
         completeMission,
         uncompleteMission,
         toggleSubtask,
