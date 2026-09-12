@@ -19,7 +19,8 @@ export const SettingsView = () => {
     toggleCrt, 
     isMuted, 
     toggleMute, 
-    resetArcadeData 
+    resetArcadeData,
+    updatePlayerIdentity, 
   } = useGame();
 
   const [alias, setAlias] = useState(profile.name);
@@ -30,9 +31,7 @@ export const SettingsView = () => {
   const handleSaveIdentity = (e) => {
     e.preventDefault();
     soundEffects.playCoin();
-    profile.name = alias;
-    profile.callsign = callsign;
-    profile.avatar = avatar;
+    updatePlayerIdentity({ name: alias, callsign, avatar });
     setSavedStatus(true);
     setTimeout(() => setSavedStatus(false), 2000);
   };

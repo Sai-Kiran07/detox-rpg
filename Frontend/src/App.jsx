@@ -1,4 +1,5 @@
 import React from 'react';
+import { Coins, Trophy, Flame } from 'lucide-react';
 import { GameProvider, useGame } from './context/GameContext.jsx';
 import { Navbar } from './components/Navbar.jsx';
 import { LandingPage } from './components/LandingPage/LandingPage.jsx';
@@ -8,10 +9,17 @@ import { StatsView } from './components/Stats/StatsView.jsx';
 import { SettingsView } from './components/Settings/SettingsView.jsx';
 import { FloatingRewards } from './components/FloatingRewards.jsx';
 import { LevelUpModal } from './components/LevelUpModal.jsx';
-import { Ticket, Trophy, Flame } from 'lucide-react';
+import { AuthView } from './components/Auth/AuthView.jsx';
+import { HistoryView } from './components/History/HistoryView.jsx';
+import { InventoryView } from './components/Inventory/InventoryView.jsx';
 
 const MainLayout = () => {
-  const { activeTab, profile, crtEnabled, getComboMultiplier } = useGame();
+  const { activeTab, profile, crtEnabled, getComboMultiplier, isAuthenticated } = useGame();
+
+  if (!isAuthenticated) {
+    return <AuthView />;
+  }
+
   const combo = getComboMultiplier(profile.streak);
 
   const renderActiveView = () => {
@@ -22,9 +30,13 @@ const MainLayout = () => {
         return <QuestList />;
       case 'shop':
         return <ShopList />;
+      case 'inventory':
+        return <InventoryView />;
       case 'attributes':
       case 'leaderboard':
         return <StatsView />;
+      case 'history':
+        return <HistoryView />;
       case 'settings':
         return <SettingsView />;
       default:
@@ -34,124 +46,58 @@ const MainLayout = () => {
 
   const getBreadcrumbTitle = () => {
     switch (activeTab) {
-      case 'landing': return 'HACKATHON PROJECT OVERVIEW';
-      case 'missions': return 'ARCADE MISSIONS & STAGES';
-      case 'shop': return 'TICKET PRIZE COUNTER';
-      case 'attributes': return 'P1 ATTRIBUTE MATRIX';
-      case 'leaderboard': return 'HIGH SCORE LEADERBOARD';
-      case 'settings': return 'CABINET PREFERENCES';
-      default: return 'ARCADE LIFE';
+      case 'landing': return 'PROJECT OVERVIEW';
+      case 'missions': return 'QUEST MANAGER';
+      case 'shop': return 'REWARD SHOP';
+      case 'inventory': return 'INVENTORY';
+      case 'attributes': return 'CHARACTER ATTRIBUTES';
+      case 'leaderboard': return 'LEADERBOARD';
+      case 'history': return 'PROGRESS TIMELINE';
+      case 'settings': return 'SETTINGS';
+      default: return 'LIFE RPG';
     }
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', width: '100%', position: 'relative' }}>
-      {/* CRT Scanline Monitor Emulation */}
-      {crtEnabled && <div className="crt-overlay" />}
-
-      {/* Left Navigation Bar */}
+    <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+      {crtEnabled && <div className="crt-overlay" aria-hidden="true" />}
       <Navbar />
 
-      {/* Main Arcade Cabinet Screen */}
-      <main style={{
-        flex: 1,
-        minWidth: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'transparent',
-      }}>
-        {/* Top Header Bar with Live Vitals */}
-        <header style={{
-          height: '64px',
-          borderBottom: '2px solid rgba(6, 182, 212, 0.25)',
-          background: 'rgba(11, 9, 24, 0.85)',
-          backdropFilter: 'blur(10px)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 2rem',
-        }}>
-          {/* Breadcrumb Title */}
+      <main className="app-main" id="main-content">
+        <header className="top-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="font-arcade" style={{ fontSize: '0.62rem', color: '#64748b' }}>CABINET //</span>
-            <span className="font-arcade" style={{
-              fontSize: '0.75rem',
-              color: '#ffffff',
-              textShadow: '0 0 10px rgba(6, 182, 212, 0.6)'
-            }}>
+            <span className="font-arcade" style={{ fontSize: '0.75rem', color: '#fff' }}>
               {getBreadcrumbTitle()}
             </span>
           </div>
 
-          {/* Quick Glances */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {/* Score Ticker */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.72rem',
-              background: 'rgba(250, 204, 21, 0.1)',
-              border: '1px solid rgba(250, 204, 21, 0.3)',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              color: '#facc15'
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="stat-pill" style={{ color: '#facc15' }}>
               <Trophy size={14} />
               <span className="font-arcade" style={{ fontSize: '0.68rem' }}>
                 {profile.score.toLocaleString()} PTS
               </span>
             </div>
-
-            {/* Streak Multiplier */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.72rem',
-              background: 'rgba(244, 63, 94, 0.12)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              color: combo.color,
-              fontWeight: 700
-            }}>
+            <div className="stat-pill" style={{ color: combo.color }}>
               <Flame size={14} color="#f43f5e" />
               <span className="font-arcade" style={{ fontSize: '0.62rem' }}>
                 {combo.label}
               </span>
             </div>
-
-            {/* Tickets */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.72rem',
-              background: 'rgba(6, 182, 212, 0.12)',
-              border: '1px solid rgba(6, 182, 212, 0.3)',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              color: '#67e8f9'
-            }}>
-              <Ticket size={14} color="#06b6d4" />
+            <div className="stat-pill" style={{ color: '#67e8f9' }}>
+              <Coins size={14} color="#06b6d4" />
               <span className="font-arcade" style={{ fontSize: '0.65rem' }}>
-                {profile.tickets} TIX
+                {profile.coins} COINS
               </span>
             </div>
           </div>
         </header>
 
-        {/* View Content */}
-        <div style={{ flex: 1, padding: '2rem' }}>
-          {renderActiveView()}
-        </div>
+        <div className="app-content">{renderActiveView()}</div>
       </main>
 
-      {/* Celebratory Overlays */}
       <FloatingRewards />
       <LevelUpModal />
     </div>

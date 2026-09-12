@@ -1,8 +1,191 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../services/soundEffects.js';
+import { ATTRIBUTE_KEYS } from '../constants/gameConfig.js';
 
 const GameContext = createContext();
+
+export const calculateXpRequired = (level) => Math.floor(100 * Math.pow(level, 1.4));
+
+const STORAGE_KEYS = {
+  USERS: 'arcade_users_v1',
+  SESSION: 'arcade_session_v1',
+  CRT: 'arcade_crt_enabled',
+};
+
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+const hashPassword = (password) => {
+  let hash = 0;
+  for (let i = 0; i < password.length; i += 1) {
+    hash = (hash << 5) - hash + password.charCodeAt(i);
+    hash |= 0;
+  }
+  return `h${Math.abs(hash)}`;
+};
+
+const createSession = (user) => {
+  const token = globalThis.crypto?.randomUUID?.() || `token-${Date.now()}`;
+  return {
+    token,
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7,
+  };
+};
+
+const buildInitialProfile = (name) => ({
+  name: name || 'Player One',
+  callsign: 'QUEST SEEKER',
+  level: 1,
+  xp: 0,
+  score: 0,
+  coins: 120,
+  streak: 0,
+  lastActiveDate: null,
+  avatar: '🕹️',
+  attributes: {
+    STR: 1,
+    INT: 1,
+    WIS: 1,
+    DIS: 1,
+    CRE: 1,
+  },
+});
+
+const buildInitialMissions = () => [
+  {
+    id: 'm-1',
+    title: 'Solve 2 medium coding problems',
+    description: 'Practice DSA and write clean explanations.',
+    category: 'Study',
+    stage: 'Intermediate',
+    attribute: 'INT',
+    attributeGain: 2,
+    rewardXp: 140,
+    rewardScore: 320,
+    rewardCoins: 28,
+    completed: false,
+    deadline: 'Today',
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+  },
+  {
+    id: 'm-2',
+    title: '45-minute focused deep work',
+    description: 'Phone away, uninterrupted block.',
+    category: 'Focus',
+    stage: 'Intermediate',
+    attribute: 'DIS',
+    attributeGain: 2,
+    rewardXp: 120,
+    rewardScore: 280,
+    rewardCoins: 24,
+    completed: false,
+    deadline: 'Today',
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+  },
+  {
+    id: 'm-3',
+    title: '30-minute workout',
+    description: 'Strength circuit with warm-up and cool-down.',
+    category: 'Health',
+    stage: 'Novice',
+    attribute: 'STR',
+    attributeGain: 1,
+    rewardXp: 80,
+    rewardScore: 180,
+    rewardCoins: 18,
+    completed: false,
+    deadline: 'Today',
+    createdAt: new Date().toISOString(),
+    completedAt: null,
+  },
+];
+
+const buildInitialPrizes = () => [
+  {
+    id: 'p-1',
+    title: 'Night Theme Unlock',
+    description: 'Unlock an alternate neon-night theme.',
+    cost: 90,
+    icon: 'Sparkles',
+    tier: 'Rare',
+    type: 'Theme',
+  },
+  {
+    id: 'p-2',
+    title: 'Focus Badge',
+    description: 'Profile badge for consistency streaks.',
+    cost: 70,
+    icon: 'BookOpen',
+    tier: 'Uncommon',
+    type: 'Badge',
+  },
+  {
+    id: 'p-3',
+    title: 'Gaming Break',
+    description: '1 hour guilt-free gaming reward.',
+    cost: 110,
+    icon: 'Gamepad2',
+    tier: 'Rare',
+    type: 'Item',
+  },
+];
+
+const getUserStorageKey = (userId, section) => `arcade_${section}_${userId}`;
+const mapLegacyAttribute = (attr) => {
+  if (attr === 'AGI') return 'WIS';
+  if (attr === 'END') return 'DIS';
+  if (attr === 'CHA') return 'CRE';
+  return attr;
+};
+
+const getStreakBonus = (streak) => {
+  if (streak >= 14) return 30;
+  if (streak >= 7) return 18;
+  if (streak >= 3) return 8;
+  return 0;
+};
+
+const getNextStreak = (previousDate, previousStreak, currentDay) => {
+  if (!previousDate) return 1;
+  if (previousDate === currentDay) return previousStreak;
+
+  const prev = new Date(`${previousDate}T00:00:00Z`);
+  const curr = new Date(`${currentDay}T00:00:00Z`);
+  const diffDays = Math.floor((curr.getTime() - prev.getTime()) / 86400000);
+
+  if (diffDays === 1) return previousStreak + 1;
+  return 1;
+};
+
+const makeHistoryEntry = ({ type, title, description, coinsDelta = 0 }) => ({
+  id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+  type,
+  title,
+  description,
+  coinsDelta,
+  createdAt: new Date().toISOString(),
+});
+
+const normalizeAttributes = (attributes = {}) => ({
+  STR: attributes.STR ?? 1,
+  INT: attributes.INT ?? 1,
+  WIS: attributes.WIS ?? attributes.AGI ?? 1,
+  DIS: attributes.DIS ?? attributes.END ?? 1,
+  CRE: attributes.CRE ?? attributes.CHA ?? 1,
+});
+
+const safeParse = (value, fallback) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 export const useGame = () => {
   const context = useContext(GameContext);
@@ -12,491 +195,428 @@ export const useGame = () => {
   return context;
 };
 
-// Non-linear XP formula: XP required for level L = Math.floor(100 * (L ** 1.4))
-export const calculateXpRequired = (level) => {
-  return Math.floor(100 * Math.pow(level, 1.4));
-};
-
-const STORAGE_KEYS = {
-  PROFILE: 'arcade_profile_v2',
-  MISSIONS: 'arcade_missions_v2',
-  PRIZES: 'arcade_prizes_v2',
-  INVENTORY: 'arcade_inventory_v2',
-  CRT: 'arcade_crt_enabled',
-};
-
-// Initial Retro Starter Missions
-const INITIAL_MISSIONS = [
-  {
-    id: 'm-1',
-    title: 'Code the Cyber-Algorithm Matrix',
-    description: 'Solve 2 complex graph or dynamic programming challenges with zero compilation bugs.',
-    category: 'Academics',
-    stage: 'Expert',
-    attribute: 'INT',
-    attributeGain: 3,
-    rewardXp: 220,
-    rewardScore: 500,
-    rewardTickets: 60,
-    completed: false,
-    deadline: 'Tonight, 22:00',
-  },
-  {
-    id: 'm-2',
-    title: 'Titan Heavy Lift Circuit',
-    description: '45-minute resistance training and core conditioning at the iron gym.',
-    category: 'Fitness',
-    stage: 'Intermediate',
-    attribute: 'STR',
-    attributeGain: 2,
-    rewardXp: 160,
-    rewardScore: 350,
-    rewardTickets: 40,
-    completed: false,
-    deadline: 'Daily Stage',
-  },
-  {
-    id: 'm-3',
-    title: 'Deep Work Trance (Pomodoro)',
-    description: 'Execute 2 continuous 50-minute laser-focused study sprints without checking phone.',
-    category: 'Focus',
-    stage: 'Intermediate',
-    attribute: 'END',
-    attributeGain: 2,
-    rewardXp: 150,
-    rewardScore: 300,
-    rewardTickets: 35,
-    completed: false,
-    deadline: 'Afternoon',
-  },
-  {
-    id: 'm-4',
-    title: 'Hackathon Syndicate Presentation',
-    description: 'Deliver the 3-minute project pitch deck confidently to the guild evaluators.',
-    category: 'Social',
-    stage: 'Boss',
-    attribute: 'CHA',
-    attributeGain: 4,
-    rewardXp: 380,
-    rewardScore: 1000,
-    rewardTickets: 120,
-    completed: false,
-    deadline: 'Saturday Demo',
-  },
-  {
-    id: 'm-5',
-    title: 'Speed Clean Quarters',
-    description: 'Tidy workstation, vacuum room, and organize desk within 15 minutes.',
-    category: 'Habits',
-    stage: 'Novice',
-    attribute: 'AGI',
-    attributeGain: 1,
-    rewardXp: 80,
-    rewardScore: 150,
-    rewardTickets: 20,
-    completed: true,
-    deadline: 'Cleared',
-  },
-];
-
-// Initial Arcade Prize Counter Items
-const INITIAL_PRIZES = [
-  {
-    id: 'p-1',
-    title: '1-Hour Retro Arcade Gaming Pass',
-    description: '60 minutes of uninterrupted video game leisure or speedrunning.',
-    cost: 75,
-    icon: 'Gamepad2',
-    tier: 'Rare',
-  },
-  {
-    id: 'p-2',
-    title: 'High-Octane Nitro Matcha / Espresso',
-    description: 'Gourmet handcrafted coffee or boba tea power-up.',
-    cost: 45,
-    icon: 'Coffee',
-    tier: 'Uncommon',
-  },
-  {
-    id: 'p-3',
-    title: 'Arcade Champion Pizza Feast',
-    description: 'Order your favorite loaded pizza banquet after conquering all daily stages.',
-    cost: 200,
-    icon: 'UtensilsCrossed',
-    tier: 'Legendary',
-  },
-  {
-    id: 'p-4',
-    title: 'Restorative Nature Walk (Mana Recharge)',
-    description: '25-minute unplugged stroll through the campus park.',
-    cost: 30,
-    icon: 'Trees',
-    tier: 'Common',
-  },
-];
-
-const INITIAL_PROFILE = {
-  name: 'PLAYER ONE',
-  callsign: 'NEO-RAIDER',
-  level: 3,
-  xp: 180,
-  score: 4250,
-  tickets: 185,
-  hp: 90,
-  maxHp: 100,
-  energy: 85,
-  maxEnergy: 100,
-  streak: 5,
-  avatar: '🕹️',
-  attributes: {
-    INT: 14, // Intellect
-    STR: 11, // Strength
-    AGI: 8,  // Agility
-    END: 12, // Endurance
-    CHA: 9,  // Charisma
-  },
-};
-
 export const GameProvider = ({ children }) => {
-  const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PROFILE);
-    return saved ? JSON.parse(saved) : INITIAL_PROFILE;
-  });
-
-  const [missions, setMissions] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MISSIONS);
-    return saved ? JSON.parse(saved) : INITIAL_MISSIONS;
-  });
-
-  const [prizes, setPrizes] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.PRIZES);
-    return saved ? JSON.parse(saved) : INITIAL_PRIZES;
-  });
-
-  const [inventory, setInventory] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.INVENTORY);
-    return saved ? JSON.parse(saved) : [
-      {
-        id: 'inv-init-1',
-        title: 'Golden Arcade Token Badge',
-        description: 'Proof of entry into the 1984 Life RPG Championship.',
-        icon: 'Award',
-        tier: 'Legendary',
-        acquiredAt: new Date().toLocaleDateString(),
-      }
-    ];
-  });
-
-  const [activeTab, setActiveTab] = useState('landing'); // 'landing', 'missions', 'shop', 'attributes', 'leaderboard', 'settings'
+  const [users, setUsers] = useState(() => safeParse(localStorage.getItem(STORAGE_KEYS.USERS), []));
+  const [session, setSession] = useState(() => safeParse(localStorage.getItem(STORAGE_KEYS.SESSION), null));
+  const [authError, setAuthError] = useState('');
+  const [activeTab, setActiveTab] = useState('landing');
   const [crtEnabled, setCrtEnabled] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.CRT);
-    return saved !== null ? JSON.parse(saved) : true;
+    const stored = localStorage.getItem(STORAGE_KEYS.CRT);
+    return stored ? JSON.parse(stored) : true;
   });
   const [isMuted, setIsMuted] = useState(false);
   const [floatingRewards, setFloatingRewards] = useState([]);
   const [levelUpData, setLevelUpData] = useState(null);
 
-  // Sync to local storage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
-  }, [profile]);
+  const [profile, setProfile] = useState(null);
+  const [missions, setMissions] = useState([]);
+  const [prizes, setPrizes] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [history, setHistory] = useState([]);
+
+  const isAuthenticated = Boolean(session?.userId && session.expiresAt > Date.now());
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(missions));
-  }, [missions]);
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }, [users]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.PRIZES, JSON.stringify(prizes));
-  }, [prizes]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
-  }, [inventory]);
+    if (session) {
+      localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+      return;
+    }
+    localStorage.removeItem(STORAGE_KEYS.SESSION);
+  }, [session]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CRT, JSON.stringify(crtEnabled));
   }, [crtEnabled]);
 
-  // Calculate Combo Multiplier based on daily streak
-  const getComboMultiplier = (streak) => {
-    if (streak >= 14) return { mult: 1.5, label: 'SUPER COMBO x1.50', color: '#f43f5e' };
-    if (streak >= 7) return { mult: 1.3, label: 'MEGA COMBO x1.30', color: '#facc15' };
-    if (streak >= 3) return { mult: 1.15, label: 'COMBO x1.15', color: '#06b6d4' };
-    return { mult: 1.0, label: '1.0x NORMAL', color: '#94a3b8' };
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setProfile(null);
+      setMissions([]);
+      setPrizes([]);
+      setInventory([]);
+      setHistory([]);
+      return;
+    }
+
+    const userId = session.userId;
+    const loadedProfile = safeParse(localStorage.getItem(getUserStorageKey(userId, 'profile')), null) || buildInitialProfile(session.name);
+    const loadedMissionsRaw = safeParse(localStorage.getItem(getUserStorageKey(userId, 'missions')), buildInitialMissions());
+    const loadedMissions = loadedMissionsRaw.map((mission) => ({
+      ...mission,
+      attribute: mapLegacyAttribute(mission.attribute),
+      rewardCoins: mission.rewardCoins ?? mission.rewardTickets ?? 0,
+    }));
+    const loadedPrizes = safeParse(localStorage.getItem(getUserStorageKey(userId, 'prizes')), buildInitialPrizes());
+    const loadedInventory = safeParse(localStorage.getItem(getUserStorageKey(userId, 'inventory')), []);
+    const loadedHistory = safeParse(localStorage.getItem(getUserStorageKey(userId, 'history')), []);
+
+    setProfile({
+      ...buildInitialProfile(session.name),
+      ...loadedProfile,
+      coins: loadedProfile.coins ?? loadedProfile.tickets ?? 0,
+      attributes: normalizeAttributes(loadedProfile.attributes),
+    });
+    setMissions(loadedMissions);
+    setPrizes(loadedPrizes);
+    setInventory(loadedInventory);
+    setHistory(loadedHistory);
+  }, [isAuthenticated, session]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !profile) return;
+    localStorage.setItem(getUserStorageKey(session.userId, 'profile'), JSON.stringify(profile));
+  }, [isAuthenticated, session, profile]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    localStorage.setItem(getUserStorageKey(session.userId, 'missions'), JSON.stringify(missions));
+  }, [isAuthenticated, session, missions]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    localStorage.setItem(getUserStorageKey(session.userId, 'prizes'), JSON.stringify(prizes));
+  }, [isAuthenticated, session, prizes]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    localStorage.setItem(getUserStorageKey(session.userId, 'inventory'), JSON.stringify(inventory));
+  }, [isAuthenticated, session, inventory]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    localStorage.setItem(getUserStorageKey(session.userId, 'history'), JSON.stringify(history));
+  }, [isAuthenticated, session, history]);
+
+  const addHistory = (entry) => {
+    setHistory((prev) => [entry, ...prev].slice(0, 200));
   };
 
-  // Spawn floating arcade hit numbers
   const triggerFloatingReward = (text, type, x, y) => {
     const id = Date.now() + Math.random();
     setFloatingRewards((prev) => [...prev, { id, text, type, x, y }]);
     setTimeout(() => {
-      setFloatingRewards((prev) => prev.filter((r) => r.id !== id));
+      setFloatingRewards((prev) => prev.filter((item) => item.id !== id));
     }, 1200);
   };
 
-  // Check Level Progression using non-linear curve
-  const checkNonLinearLevelUp = (currentXp, currentLevel, addedXp) => {
-    let totalXp = currentXp + addedXp;
-    let newLevel = currentLevel;
-    let xpNeeded = calculateXpRequired(newLevel);
+  const getComboMultiplier = (streak) => {
+    if (streak >= 14) return { mult: 1.5, label: 'SUPER COMBO x1.50', color: '#f43f5e' };
+    if (streak >= 7) return { mult: 1.3, label: 'MEGA COMBO x1.30', color: '#facc15' };
+    if (streak >= 3) return { mult: 1.15, label: 'COMBO x1.15', color: '#06b6d4' };
+    return { mult: 1, label: '1.0x NORMAL', color: '#94a3b8' };
+  };
+
+  const resolveLevelProgression = (currentXp, currentLevel, xpGain) => {
+    let xp = currentXp + xpGain;
+    let level = currentLevel;
     let leveledUp = false;
 
-    while (totalXp >= xpNeeded) {
-      totalXp -= xpNeeded;
-      newLevel += 1;
-      xpNeeded = calculateXpRequired(newLevel);
+    while (xp >= calculateXpRequired(level)) {
+      xp -= calculateXpRequired(level);
+      level += 1;
       leveledUp = true;
     }
 
-    if (leveledUp) {
-      soundEffects.playLevelUp();
-      try {
-        confetti({
-          particleCount: 100,
-          spread: 80,
-          origin: { y: 0.6 },
-          colors: ['#f43f5e', '#06b6d4', '#facc15', '#10b981'],
-        });
-      } catch (e) {
-        console.warn('Confetti error', e);
-      }
-
-      const titles = [
-        'COIN OPERATOR',
-        '8-BIT CHALLENGER',
-        'CABINET HERO',
-        'STAGE CLEAR EXPERT',
-        'PIXEL WARLORD',
-        'NEON ARCADE CHAMPION',
-        'LEGENDARY HIGH SCORER',
-      ];
-      const callsign = titles[Math.min(newLevel - 1, titles.length - 1)];
-
-      setLevelUpData({
-        level: newLevel,
-        callsign,
-        rewardTickets: newLevel * 40,
-      });
-
-      return {
-        level: newLevel,
-        callsign,
-        xp: totalXp,
-        leveledUp: true,
-        ticketBonus: newLevel * 40,
-      };
+    if (!leveledUp) {
+      return { level, xp, leveledUp: false, bonusCoins: 0, callsign: profile.callsign };
     }
 
-    return {
-      level: currentLevel,
-      callsign: profile.callsign,
-      xp: totalXp,
-      leveledUp: false,
-      ticketBonus: 0,
-    };
+    soundEffects.playLevelUp();
+    confetti({
+      particleCount: 100,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ['#f43f5e', '#06b6d4', '#facc15', '#10b981'],
+    });
+
+    const callsignPool = ['ROOKIE', 'PATHFINDER', 'CHALLENGER', 'VANGUARD', 'MASTER', 'MYTHIC'];
+    const callsign = callsignPool[Math.min(level - 1, callsignPool.length - 1)];
+    const bonusCoins = level * 20;
+
+    setLevelUpData({
+      level,
+      callsign,
+      rewardCoins: bonusCoins,
+    });
+
+    return { level, xp, leveledUp: true, bonusCoins, callsign };
   };
 
-  // Complete Mission Action
-  const completeMission = (mission, e) => {
-    if (mission.completed) return;
+  const completeMission = (mission, event) => {
+    if (!profile || mission.completed) return;
 
     let clickX = window.innerWidth / 2;
     let clickY = window.innerHeight / 2;
-    if (e && e.clientX && e.clientY) {
-      clickX = e.clientX;
-      clickY = e.clientY;
+    if (event?.clientX && event?.clientY) {
+      clickX = event.clientX;
+      clickY = event.clientY;
     }
 
-    // Audio & Combo check
     soundEffects.playCheckmark();
     const combo = getComboMultiplier(profile.streak);
-    if (combo.mult > 1.0) {
-      setTimeout(() => soundEffects.playCombo(), 120);
-    }
+    const scoreGain = Math.round((mission.rewardScore || 0) * combo.mult);
+    const day = todayKey();
+    const streak = getNextStreak(profile.lastActiveDate, profile.streak, day);
+    const streakBonus = profile.lastActiveDate === day ? 0 : getStreakBonus(streak);
+    const levelResult = resolveLevelProgression(profile.xp, profile.level, mission.rewardXp || 0);
+    const attributeCode = ATTRIBUTE_KEYS.includes(mission.attribute) ? mission.attribute : 'INT';
+    const attributeGain = Number(mission.attributeGain) || 1;
+    const missionCoins = Number(mission.rewardCoins) || 0;
+    const totalCoinGain = missionCoins + streakBonus + levelResult.bonusCoins;
 
-    // Calculate score with combo multiplier
-    const finalScoreGain = Math.round(mission.rewardScore * combo.mult);
-
-    // Floating text feedback
-    triggerFloatingReward(`+${mission.rewardXp} XP`, 'xp', clickX - 30, clickY - 25);
+    triggerFloatingReward(`+${mission.rewardXp || 0} XP`, 'xp', clickX - 20, clickY - 20);
     setTimeout(() => {
       soundEffects.playCoin();
-      triggerFloatingReward(`+${finalScoreGain} PTS`, 'score', clickX + 40, clickY - 25);
+      triggerFloatingReward(`+${totalCoinGain} COINS`, 'score', clickX + 40, clickY - 20);
     }, 180);
 
-    // Level progression
-    const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, mission.rewardXp);
+    setProfile((prev) => ({
+      ...prev,
+      xp: levelResult.xp,
+      level: levelResult.level,
+      callsign: levelResult.callsign,
+      score: prev.score + scoreGain,
+      coins: prev.coins + totalCoinGain,
+      streak,
+      lastActiveDate: day,
+      attributes: {
+        ...prev.attributes,
+        [attributeCode]: (prev.attributes[attributeCode] || 1) + attributeGain,
+      },
+    }));
 
-    // Update Attribute (INT, STR, AGI, END, CHA)
-    const currentAttrVal = profile.attributes[mission.attribute] || 10;
-    const updatedAttributes = {
-      ...profile.attributes,
-      [mission.attribute]: currentAttrVal + (mission.attributeGain || 1),
-    };
-
-    const updatedProfile = {
-      ...profile,
-      level: levelRes.level,
-      callsign: levelRes.callsign,
-      xp: levelRes.xp,
-      score: profile.score + finalScoreGain,
-      tickets: profile.tickets + mission.rewardTickets + levelRes.ticketBonus,
-      attributes: updatedAttributes,
-    };
-
-    setProfile(updatedProfile);
     setMissions((prev) =>
-      prev.map((m) => (m.id === mission.id ? { ...m, completed: true } : m))
+      prev.map((item) =>
+        item.id === mission.id
+          ? { ...item, completed: true, completedAt: new Date().toISOString() }
+          : item
+      )
+    );
+
+    addHistory(
+      makeHistoryEntry({
+        type: 'quest-completed',
+        title: `Quest Completed: ${mission.title}`,
+        description: `+${mission.rewardXp || 0} XP, +${missionCoins} coins${streakBonus ? `, +${streakBonus} streak bonus` : ''}.`,
+        coinsDelta: totalCoinGain,
+      })
     );
   };
 
-  // Uncomplete mission
   const uncompleteMission = (mission) => {
     soundEffects.playClick();
-    setMissions((prev) =>
-      prev.map((m) => (m.id === mission.id ? { ...m, completed: false } : m))
-    );
+    setMissions((prev) => prev.map((item) => (item.id === mission.id ? { ...item, completed: false } : item)));
   };
 
-  // Add / Forge new mission
   const addMission = (missionData) => {
+    const title = missionData.title?.trim();
+    if (!title) {
+      throw new Error('Mission title is required.');
+    }
     soundEffects.playCoin();
     const newMission = {
       id: `m-${Date.now()}`,
       completed: false,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
       ...missionData,
+      title,
     };
     setMissions((prev) => [newMission, ...prev]);
     return newMission;
   };
 
-  // Update mission
   const updateMission = (id, updates) => {
     soundEffects.playClick();
-    setMissions((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    setMissions((prev) => prev.map((item) => (item.id === id ? { ...item, ...updates } : item)));
   };
 
-  // Delete mission
   const deleteMission = (id) => {
     soundEffects.playClick();
-    setMissions((prev) => prev.filter((m) => m.id !== id));
+    setMissions((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Buy item from Prize Counter
-  const buyPrize = (prize, e) => {
-    if (profile.tickets < prize.cost) {
+  const buyPrize = (prize, event) => {
+    if (!profile) return false;
+    if (profile.coins < prize.cost) {
       soundEffects.playError();
-      let clickX = window.innerWidth / 2;
-      let clickY = window.innerHeight / 2;
-      if (e && e.clientX && e.clientY) {
-        clickX = e.clientX;
-        clickY = e.clientY;
-      }
-      triggerFloatingReward('INSUFFICIENT TICKETS!', 'error', clickX, clickY - 20);
+      const x = event?.clientX || window.innerWidth / 2;
+      const y = event?.clientY || window.innerHeight / 2;
+      triggerFloatingReward('NOT ENOUGH COINS', 'error', x, y - 20);
       return false;
     }
 
     soundEffects.playPurchase();
-    let clickX = window.innerWidth / 2;
-    let clickY = window.innerHeight / 2;
-    if (e && e.clientX && e.clientY) {
-      clickX = e.clientX;
-      clickY = e.clientY;
-    }
-    triggerFloatingReward(`-${prize.cost} TICKETS`, 'ticket-deduct', clickX, clickY - 20);
+    const x = event?.clientX || window.innerWidth / 2;
+    const y = event?.clientY || window.innerHeight / 2;
+    triggerFloatingReward(`-${prize.cost} COINS`, 'ticket-deduct', x, y - 20);
 
-    const updatedProfile = {
-      ...profile,
-      tickets: profile.tickets - prize.cost,
-    };
-    setProfile(updatedProfile);
+    setProfile((prev) => ({ ...prev, coins: prev.coins - prize.cost }));
+    setInventory((prev) => [
+      {
+        id: `inv-${Date.now()}`,
+        title: prize.title,
+        description: prize.description,
+        icon: prize.icon,
+        rarity: prize.tier,
+        type: prize.type,
+        acquiredAt: new Date().toLocaleDateString(),
+      },
+      ...prev,
+    ]);
 
-    const newItem = {
-      id: `inv-${Date.now()}`,
-      title: prize.title,
-      description: prize.description,
-      icon: prize.icon,
-      tier: prize.tier,
-      acquiredAt: new Date().toLocaleDateString(),
-    };
-    setInventory((prev) => [newItem, ...prev]);
+    addHistory(
+      makeHistoryEntry({
+        type: 'purchase',
+        title: `Purchased: ${prize.title}`,
+        description: `${prize.type || 'Reward'} unlocked.`,
+        coinsDelta: -prize.cost,
+      })
+    );
     return true;
   };
 
-  // Add custom prize
   const addPrize = (prizeData) => {
     soundEffects.playCoin();
-    const newPrize = {
-      id: `p-${Date.now()}`,
-      ...prizeData,
-    };
-    setPrizes((prev) => [newPrize, ...prev]);
+    setPrizes((prev) => [{ id: `p-${Date.now()}`, ...prizeData }, ...prev]);
   };
 
-  // Delete prize
   const deletePrize = (id) => {
     soundEffects.playClick();
-    setPrizes((prev) => prev.filter((p) => p.id !== id));
+    setPrizes((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Toggle CRT Scanlines
   const toggleCrt = () => {
     soundEffects.playClick();
-    setCrtEnabled(!crtEnabled);
+    setCrtEnabled((prev) => !prev);
   };
 
-  // Toggle Mute
   const toggleMute = () => {
     const muted = soundEffects.toggleMute();
     setIsMuted(muted);
   };
 
-  // Close Level Up Modal
-  const closeLevelUpModal = () => {
-    setLevelUpData(null);
-  };
+  const closeLevelUpModal = () => setLevelUpData(null);
 
-  // Reset demo data
   const resetArcadeData = () => {
-    localStorage.removeItem(STORAGE_KEYS.PROFILE);
-    localStorage.removeItem(STORAGE_KEYS.MISSIONS);
-    localStorage.removeItem(STORAGE_KEYS.PRIZES);
-    localStorage.removeItem(STORAGE_KEYS.INVENTORY);
-    setProfile(INITIAL_PROFILE);
-    setMissions(INITIAL_MISSIONS);
-    setPrizes(INITIAL_PRIZES);
-    window.location.reload();
+    if (!session?.userId) return;
+    localStorage.removeItem(getUserStorageKey(session.userId, 'profile'));
+    localStorage.removeItem(getUserStorageKey(session.userId, 'missions'));
+    localStorage.removeItem(getUserStorageKey(session.userId, 'prizes'));
+    localStorage.removeItem(getUserStorageKey(session.userId, 'inventory'));
+    localStorage.removeItem(getUserStorageKey(session.userId, 'history'));
+    setProfile(buildInitialProfile(session.name));
+    setMissions(buildInitialMissions());
+    setPrizes(buildInitialPrizes());
+    setInventory([]);
+    setHistory([]);
   };
 
-  return (
-    <GameContext.Provider
-      value={{
-        profile,
-        missions,
-        prizes,
-        inventory,
-        activeTab,
-        setActiveTab,
-        crtEnabled,
-        toggleCrt,
-        isMuted,
-        toggleMute,
-        floatingRewards,
-        levelUpData,
-        closeLevelUpModal,
-        completeMission,
-        uncompleteMission,
-        addMission,
-        updateMission,
-        deleteMission,
-        buyPrize,
-        addPrize,
-        deletePrize,
-        getComboMultiplier,
-        resetArcadeData,
-      }}
-    >
-      {children}
-    </GameContext.Provider>
+  const updatePlayerIdentity = ({ name, callsign, avatar }) => {
+    setProfile((prev) => ({
+      ...prev,
+      name: name?.trim() || prev.name,
+      callsign: callsign?.trim() || prev.callsign,
+      avatar: avatar || prev.avatar,
+    }));
+  };
+
+  const signup = ({ name, email, password }) => {
+    setAuthError('');
+    const normalizedEmail = email.toLowerCase();
+    if (users.some((item) => item.email === normalizedEmail)) {
+      setAuthError('Account already exists for this email.');
+      return;
+    }
+
+    const user = {
+      id: `u-${Date.now()}`,
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash: hashPassword(password),
+      createdAt: new Date().toISOString(),
+    };
+
+    setUsers((prev) => [...prev, user]);
+    const createdSession = createSession(user);
+    setSession(createdSession);
+    setActiveTab('landing');
+  };
+
+  const login = ({ email, password }) => {
+    setAuthError('');
+    const normalizedEmail = email.toLowerCase();
+    const user = users.find((item) => item.email === normalizedEmail);
+
+    if (!user || user.passwordHash !== hashPassword(password)) {
+      setAuthError('Invalid email or password.');
+      return;
+    }
+
+    setSession(createSession(user));
+    setActiveTab('landing');
+  };
+
+  const logout = () => {
+    soundEffects.playClick();
+    setSession(null);
+    setActiveTab('landing');
+  };
+
+  const contextValue = useMemo(
+    () => ({
+      isAuthenticated,
+      authUser: session ? { email: session.email, name: session.name } : null,
+      authError,
+      login,
+      signup,
+      logout,
+      profile: profile || buildInitialProfile(''),
+      missions,
+      prizes,
+      inventory,
+      history,
+      activeTab,
+      setActiveTab,
+      crtEnabled,
+      toggleCrt,
+      isMuted,
+      toggleMute,
+      floatingRewards,
+      levelUpData,
+      closeLevelUpModal,
+      completeMission,
+      uncompleteMission,
+      addMission,
+      updateMission,
+      deleteMission,
+      buyPrize,
+      addPrize,
+      deletePrize,
+      getComboMultiplier,
+      resetArcadeData,
+      updatePlayerIdentity,
+    }),
+    [
+      isAuthenticated,
+      session,
+      authError,
+      profile,
+      missions,
+      prizes,
+      inventory,
+      history,
+      activeTab,
+      crtEnabled,
+      isMuted,
+      floatingRewards,
+      levelUpData,
+    ]
   );
+
+  return <GameContext.Provider value={contextValue}>{children}</GameContext.Provider>;
 };

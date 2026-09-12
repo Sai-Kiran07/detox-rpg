@@ -1,6 +1,7 @@
 import React from 'react';
-import { Check, Edit3, Trash2, Clock, Ticket, Zap } from 'lucide-react';
+import { Check, Edit3, Trash2, Clock } from 'lucide-react';
 import { useGame } from '../../context/GameContext.jsx';
+import { ATTRIBUTE_CONFIG } from '../../constants/gameConfig.js';
 
 export const QuestCard = ({ mission, onEdit }) => {
   const { completeMission, uncompleteMission, deleteMission, profile, getComboMultiplier } = useGame();
@@ -17,15 +18,7 @@ export const QuestCard = ({ mission, onEdit }) => {
     }
   };
 
-  const getAttrClass = (attr) => {
-    switch (attr) {
-      case 'STR': return 'attr-str';
-      case 'AGI': return 'attr-agi';
-      case 'END': return 'attr-end';
-      case 'CHA': return 'attr-cha';
-      default: return 'attr-int';
-    }
-  };
+  const getAttrClass = (attr) => ATTRIBUTE_CONFIG[attr]?.className || 'attr-int';
 
   const handleToggle = (e) => {
     if (mission.completed) {
@@ -183,7 +176,7 @@ export const QuestCard = ({ mission, onEdit }) => {
               borderRadius: '4px',
               border: '1px solid rgba(244, 63, 94, 0.3)'
             }}>
-              +{mission.rewardTickets} TICKETS
+              +{mission.rewardCoins || 0} COINS
             </span>
           </div>
 
@@ -198,6 +191,7 @@ export const QuestCard = ({ mission, onEdit }) => {
                 padding: '4px',
               }}
               title="Edit mission details"
+              aria-label={`Edit mission ${mission.title}`}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#38bdf8')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
             >
@@ -213,6 +207,7 @@ export const QuestCard = ({ mission, onEdit }) => {
                 padding: '4px',
               }}
               title="Abort / Delete mission"
+              aria-label={`Delete mission ${mission.title}`}
               onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
               onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
             >

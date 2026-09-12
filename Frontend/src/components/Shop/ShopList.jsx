@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  Ticket, 
-  Plus, 
-  Trash2, 
-  Gamepad2, 
-  Coffee, 
-  UtensilsCrossed, 
-  Trees, 
-  BookOpen, 
+import {
+  Coins,
+  Plus,
+  Trash2,
+  Gamepad2,
+  Coffee,
+  UtensilsCrossed,
+  Trees,
+  BookOpen,
   Sparkles,
-  Lock
+  Lock,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext.jsx';
 import { AddItemModal } from './AddItemModal.jsx';
@@ -41,7 +41,6 @@ export const ShopList = () => {
 
   return (
     <div style={{ maxWidth: '980px', margin: '0 auto', paddingBottom: '3rem' }}>
-      {/* 1. Header with Ticket Reservoir */}
       <div style={{
         display: 'flex',
         alignItems: 'flex-start',
@@ -50,27 +49,21 @@ export const ShopList = () => {
         gap: '1rem',
         marginBottom: '1.75rem',
         borderBottom: '2px solid rgba(244, 63, 94, 0.25)',
-        paddingBottom: '1.25rem'
+        paddingBottom: '1.25rem',
       }}>
         <div>
-          <span className="font-arcade" style={{ fontSize: '0.68rem', color: '#f43f5e', letterSpacing: '0.12em' }}>
-            // REDEMPTION ARCADE DESK //
+          <span className="font-arcade" style={{ fontSize: '0.68rem', color: '#f43f5e' }}>
+            // REWARD ECONOMY //
           </span>
-          <h2 className="font-arcade" style={{
-            fontSize: '1.6rem',
-            color: '#ffffff',
-            marginTop: '0.35rem',
-            textShadow: '0 0 12px rgba(244, 63, 94, 0.6)'
-          }}>
-            TICKET PRIZE COUNTER
+          <h2 className="font-arcade" style={{ fontSize: '1.45rem', marginTop: '0.35rem' }}>
+            COIN REWARD SHOP
           </h2>
           <p style={{ fontSize: '0.88rem', color: '#94a3b8', marginTop: '0.3rem' }}>
-            Redeem tickets earned from clearing life stages for real-world rewards and recharge passes.
+            Buy virtual items, badges, and themes with coins earned from quests and streaks.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          {/* Ticket Balance Box */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -79,144 +72,71 @@ export const ShopList = () => {
             background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.2) 0%, rgba(159, 18, 57, 0.2) 100%)',
             border: '2px solid #f43f5e',
             borderRadius: '8px',
-            boxShadow: '0 0 20px rgba(244, 63, 94, 0.3)'
           }}>
-            <Ticket size={22} color="#f43f5e" />
+            <Coins size={22} color="#f43f5e" />
             <div>
-              <div style={{ fontSize: '0.62rem', color: '#fda4af', textTransform: 'uppercase' }}>TICKETS IN WALLET</div>
-              <div className="font-arcade" style={{ fontSize: '1.1rem', color: '#ffffff' }}>
-                {profile.tickets} <span style={{ fontSize: '0.75rem', color: '#f43f5e' }}>TIX</span>
+              <div style={{ fontSize: '0.62rem', color: '#fda4af', textTransform: 'uppercase' }}>COIN BALANCE</div>
+              <div className="font-arcade" style={{ fontSize: '1.1rem', color: '#fff' }}>
+                {profile.coins}
               </div>
             </div>
           </div>
 
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="arcade-btn arcade-btn-primary"
-          >
-            <Plus size={16} /> STOCK PRIZE
+          <button onClick={() => setIsModalOpen(true)} className="arcade-btn arcade-btn-primary">
+            <Plus size={16} /> ADD REWARD
           </button>
         </div>
       </div>
 
-      {/* 2. Prize Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-        gap: '1.25rem'
-      }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '1.25rem' }}>
         {prizes.map((prize) => {
-          const canAfford = profile.tickets >= prize.cost;
-
+          const canAfford = profile.coins >= prize.cost;
           return (
-            <div
-              key={prize.id}
-              className="arcade-card"
-              style={{
-                padding: '1.35rem',
-                border: getTierBorder(prize.tier),
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}
-            >
-              <div>
-                {/* Header Row: Icon & Tier */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                  <div style={{
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    {renderIcon(prize.icon)}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span 
-                      className="font-arcade"
-                      style={{
-                        fontSize: '0.58rem',
-                        color: prize.tier === 'Legendary' ? '#facc15' : prize.tier === 'Rare' ? '#f43f5e' : '#06b6d4',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        padding: '3px 6px',
-                        borderRadius: '4px',
-                      }}
-                    >
-                      {prize.tier ? prize.tier.toUpperCase() : 'COMMON'}
-                    </span>
-
-                    <button
-                      onClick={() => deletePrize(prize.id)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: '#64748b',
-                        cursor: 'pointer',
-                        padding: '3px',
-                      }}
-                      title="Retire prize from counter"
-                      onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
-                      onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
+            <div key={prize.id} className="arcade-card" style={{ padding: '1.35rem', border: getTierBorder(prize.tier) }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'grid',
+                  placeItems: 'center',
+                }}>
+                  {renderIcon(prize.icon)}
                 </div>
 
-                {/* Title */}
-                <h3 style={{
-                  fontSize: '1.05rem',
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  marginBottom: '0.35rem',
-                  lineHeight: 1.35
-                }}>
-                  {prize.title}
-                </h3>
-
-                {/* Description */}
-                <p style={{
-                  fontSize: '0.84rem',
-                  color: '#94a3b8',
-                  lineHeight: 1.45,
-                  marginBottom: '1.25rem'
-                }}>
-                  {prize.description}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="font-arcade" style={{ fontSize: '0.58rem', color: '#cbd5e1' }}>
+                    {prize.type || 'Item'}
+                  </span>
+                  <button
+                    onClick={() => deletePrize(prize.id)}
+                    style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '3px' }}
+                    title="Delete reward"
+                    aria-label={`Delete reward ${prize.title}`}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
 
-              {/* Price & Claim CTA */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '0.85rem',
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Ticket size={16} color="#f43f5e" />
-                  <span className="font-arcade" style={{ fontSize: '0.88rem', color: '#fda4af' }}>
-                    {prize.cost} <span style={{ fontSize: '0.62rem', color: '#94a3b8' }}>TIX</span>
-                  </span>
-                </div>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 700, color: '#fff', marginBottom: '0.35rem' }}>{prize.title}</h3>
+              <p style={{ fontSize: '0.84rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '1.25rem' }}>{prize.description}</p>
 
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.85rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Coins size={16} color="#f43f5e" />
+                  <span className="font-arcade" style={{ fontSize: '0.88rem', color: '#fda4af' }}>{prize.cost}</span>
+                </div>
                 <button
-                  onClick={(e) => buyPrize(prize, e)}
+                  onClick={(event) => buyPrize(prize, event)}
                   disabled={!canAfford}
                   className={`arcade-btn ${canAfford ? 'arcade-btn-primary' : ''}`}
-                  style={{
-                    fontSize: '0.68rem',
-                    padding: '0.5rem 0.9rem',
-                    opacity: canAfford ? 1 : 0.45,
-                    cursor: canAfford ? 'pointer' : 'not-allowed',
-                  }}
+                  style={{ fontSize: '0.64rem', padding: '0.5rem 0.8rem', opacity: canAfford ? 1 : 0.45, cursor: canAfford ? 'pointer' : 'not-allowed' }}
+                  aria-label={canAfford ? `Buy ${prize.title}` : `Cannot buy ${prize.title}, insufficient coins`}
                 >
-                  {canAfford ? 'CLAIM PRIZE' : 'NEED TICKETS'}
+                  {canAfford ? 'BUY' : <><Lock size={12} /> LOCKED</>}
                 </button>
               </div>
             </div>
@@ -224,11 +144,7 @@ export const ShopList = () => {
         })}
       </div>
 
-      {/* Add Modal */}
-      <AddItemModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      <AddItemModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 };

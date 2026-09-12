@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Ticket, ArrowRight, Sparkles } from 'lucide-react';
+import { Trophy, Coins, ArrowRight, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../context/GameContext.jsx';
 import { soundEffects } from '../services/soundEffects.js';
@@ -85,7 +85,7 @@ export const LevelUpModal = () => {
         </div>
 
         <p style={{ color: '#cbd5e1', fontSize: '0.92rem', maxWidth: '420px', margin: '0 auto 1.5rem', lineHeight: 1.5 }}>
-          Your discipline echoes across the leaderboard. The machine has dispensed bonus tickets to your wallet!
+          Your discipline echoes across the leaderboard. The machine has dispensed bonus coins to your wallet!
         </p>
 
         {/* Bonus Box */}
@@ -99,11 +99,11 @@ export const LevelUpModal = () => {
           padding: '0.75rem 1.5rem',
           marginBottom: '2rem'
         }}>
-          <Ticket size={22} color="#f43f5e" />
+          <Coins size={22} color="#f43f5e" />
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: '0.62rem', color: '#94a3b8', textTransform: 'uppercase' }}>BONUS TICKETS DISPENSED</div>
+            <div style={{ fontSize: '0.62rem', color: '#94a3b8', textTransform: 'uppercase' }}>BONUS COINS EARNED</div>
             <div className="font-arcade" style={{ fontSize: '1rem', color: '#fda4af' }}>
-              +{levelUpData.rewardTickets} TICKETS
+              +{levelUpData.rewardCoins} COINS
             </div>
           </div>
         </div>
