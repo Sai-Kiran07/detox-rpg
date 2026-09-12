@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Ticket, Plus } from 'lucide-react';
+import { X, Ticket, Plus, Cpu, Shield } from 'lucide-react';
 import { useGame } from '../../context/GameContext.jsx';
 
 export const AddItemModal = ({ isOpen, onClose }) => {
@@ -9,7 +9,11 @@ export const AddItemModal = ({ isOpen, onClose }) => {
   const [description, setDescription] = useState('');
   const [cost, setCost] = useState(60);
   const [tier, setTier] = useState('Uncommon');
+  const [category, setCategory] = useState('treat');
   const [icon, setIcon] = useState('Gamepad2');
+  const [gearAttr, setGearAttr] = useState('INT');
+  const [gearBonus, setGearBonus] = useState(3);
+  const [buffEffect, setBuffEffect] = useState('+1 Streak Shield');
 
   if (!isOpen) return null;
 
@@ -17,13 +21,26 @@ export const AddItemModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    addPrize({
+    const payload = {
       title,
       description,
       cost: Number(cost),
       tier,
+      category,
       icon,
-    });
+    };
+
+    if (category === 'gear') {
+      payload.slot = 'head';
+      payload.statBonus = { [gearAttr]: Number(gearBonus) };
+    } else if (category === 'buff') {
+      payload.usable = true;
+      payload.effect = buffEffect;
+    } else {
+      payload.redeemable = true;
+    }
+
+    addPrize(payload);
 
     setTitle('');
     setDescription('');
@@ -32,12 +49,14 @@ export const AddItemModal = ({ isOpen, onClose }) => {
   };
 
   const icons = [
-    { key: 'Gamepad2', label: '🎮 Video Game / Gaming Break' },
-    { key: 'Coffee', label: '☕ Gourmet Coffee / Boba Tea' },
-    { key: 'UtensilsCrossed', label: '🍕 Pizza / Champion Feast' },
-    { key: 'Trees', label: '🌲 Nature Walk / Park Stroll' },
-    { key: 'BookOpen', label: '📖 Manga / Sci-Fi Novel' },
-    { key: 'Sparkles', label: '✨ Custom Real-World Indulgence' },
+    { key: 'Gamepad2', label: '🎮 Video Game / Leisure' },
+    { key: 'Coffee', label: '☕ Coffee / Boba Tea' },
+    { key: 'UtensilsCrossed', label: '🍕 Pizza / Feast' },
+    { key: 'Trees', label: '🌲 Nature Stroll' },
+    { key: 'BookOpen', label: '📖 Manga / Codex' },
+    { key: 'Cpu', label: '🧠 Cybernetic Gear' },
+    { key: 'Shield', label: '🛡️ Defense / Shield' },
+    { key: 'Sparkles', label: '✨ Power-Up Elixir' },
   ];
 
   return (
@@ -45,8 +64,10 @@ export const AddItemModal = ({ isOpen, onClose }) => {
       <div 
         className="arcade-card"
         style={{
-          maxWidth: '540px',
+          maxWidth: '560px',
           width: '100%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
           border: '2px solid var(--neon-magenta)',
           background: '#0e0b1d',
           padding: '2rem',
@@ -105,7 +126,7 @@ export const AddItemModal = ({ isOpen, onClose }) => {
             </label>
             <textarea
               rows={2}
-              placeholder="What guilt-free leisure does this unlock?"
+              placeholder="What benefit or leisure does this unlock?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               style={{
@@ -121,6 +142,112 @@ export const AddItemModal = ({ isOpen, onClose }) => {
               }}
             />
           </div>
+
+          {/* Category Selection */}
+          <div style={{ marginBottom: '1rem' }}>
+            <label className="font-arcade" style={{ display: 'block', fontSize: '0.62rem', color: '#06b6d4', marginBottom: '0.4rem' }}>
+              PRIZE TYPE
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem',
+                borderRadius: '6px',
+                background: '#151128',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#ffffff',
+                fontSize: '0.85rem',
+                outline: 'none',
+              }}
+            >
+              <option value="treat">Real-World Treat Voucher (Coffee, Pizza, Leisure)</option>
+              <option value="gear">Tactical Gear (Equipable for Stat Bonuses)</option>
+              <option value="buff">Consumable Power-Up (Streak Shield, XP Elixir)</option>
+            </select>
+          </div>
+
+          {/* Gear specific options */}
+          {category === 'gear' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+              <div>
+                <label className="font-arcade" style={{ display: 'block', fontSize: '0.62rem', color: '#facc15', marginBottom: '0.4rem' }}>
+                  ATTRIBUTE BOOSTED
+                </label>
+                <select
+                  value={gearAttr}
+                  onChange={(e) => setGearAttr(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem',
+                    borderRadius: '6px',
+                    background: '#151128',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#ffffff',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="INT">INT (Intellect)</option>
+                  <option value="STR">STR (Strength)</option>
+                  <option value="AGI">AGI (Agility)</option>
+                  <option value="END">END (Endurance)</option>
+                  <option value="CHA">CHA (Charisma)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-arcade" style={{ display: 'block', fontSize: '0.62rem', color: '#facc15', marginBottom: '0.4rem' }}>
+                  STAT BOOST AMOUNT
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={gearBonus}
+                  onChange={(e) => setGearBonus(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem',
+                    borderRadius: '6px',
+                    background: '#151128',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    color: '#ffffff',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Buff specific options */}
+          {category === 'buff' && (
+            <div style={{ marginBottom: '1rem' }}>
+              <label className="font-arcade" style={{ display: 'block', fontSize: '0.62rem', color: '#34d399', marginBottom: '0.4rem' }}>
+                CONSUMABLE EFFECT
+              </label>
+              <select
+                value={buffEffect}
+                onChange={(e) => setBuffEffect(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem',
+                  borderRadius: '6px',
+                  background: '#151128',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#ffffff',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                }}
+              >
+                <option value="+1 Streak Shield">+1 Streak Freeze Shield (Protects streak)</option>
+                <option value="+100 Instant XP">+100 Instant Renown XP</option>
+                <option value="+200 Instant Score">+200 High Score Points</option>
+              </select>
+            </div>
+          )}
 
           {/* Price & Tier */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
@@ -167,10 +294,11 @@ export const AddItemModal = ({ isOpen, onClose }) => {
                   outline: 'none',
                 }}
               >
-                <option value="Common">Common (Plastic Toy)</option>
-                <option value="Uncommon">Uncommon (Snack/Coffee)</option>
-                <option value="Rare">Rare (Gaming Pass)</option>
-                <option value="Legendary">Legendary (Grand Banquet)</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legendary">Legendary</option>
               </select>
             </div>
           </div>

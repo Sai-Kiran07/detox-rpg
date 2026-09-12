@@ -1,12 +1,38 @@
 import React from 'react';
-import { Check, Edit3, Trash2, Clock, Ticket, Zap } from 'lucide-react';
+import { 
+  Check, 
+  Edit3, 
+  Trash2, 
+  Clock, 
+  Ticket, 
+  Zap, 
+  Repeat, 
+  AlertCircle, 
+  ListChecks, 
+  CheckSquare, 
+  Square 
+} from 'lucide-react';
 import { useGame } from '../../context/GameContext.jsx';
 
 export const QuestCard = ({ mission, onEdit }) => {
-  const { completeMission, uncompleteMission, deleteMission, profile, getComboMultiplier } = useGame();
+  const { 
+    completeMission, 
+    uncompleteMission, 
+    deleteMission, 
+    toggleSubtask,
+    profile, 
+    getComboMultiplier,
+    intXpMultiplier,
+    strScoreMultiplier
+  } = useGame();
 
   const combo = getComboMultiplier(profile.streak);
-  const calculatedScore = Math.round(mission.rewardScore * combo.mult);
+  const calculatedScore = Math.round(mission.rewardScore * combo.mult * strScoreMultiplier);
+  const calculatedXp = Math.round(mission.rewardXp * intXpMultiplier);
+  const intBonusPct = Math.round((intXpMultiplier - 1) * 100);
+
+  const subtasks = mission.subtasks || [];
+  const completedSubtasksCount = subtasks.filter((s) => s.completed).length;
 
   const getStageClass = (stage) => {
     switch (stage?.toLowerCase()) {
@@ -58,7 +84,7 @@ export const QuestCard = ({ mission, onEdit }) => {
           : undefined
       }}
     >
-      {/* Tactile Arcade Push Button Checkbox (Keyboard Accessible) */}
+      {/* Tactile Arcade Push Button Checkbox */}
       <button
         onClick={handleToggle}
         onKeyDown={handleKeyDown}
@@ -72,12 +98,13 @@ export const QuestCard = ({ mission, onEdit }) => {
 
       {/* Mission Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Header Tags Row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
           {/* Stage badge */}
           <span 
             className="font-arcade"
             style={{
-              fontSize: '0.62rem',
+              fontSize: '0.6rem',
               color: mission.stage === 'Boss' ? '#f43f5e' : '#facc15',
               padding: '2px 6px',
               borderRadius: '4px',
@@ -87,6 +114,38 @@ export const QuestCard = ({ mission, onEdit }) => {
           >
             {mission.stage ? `${mission.stage.toUpperCase()} STAGE` : 'STAGE 1'}
           </span>
+
+          {/* Priority Flag */}
+          {mission.priority === 'high' && (
+            <span className="font-arcade" style={{
+              fontSize: '0.55rem',
+              color: '#f43f5e',
+              background: 'rgba(244, 63, 94, 0.18)',
+              border: '1px solid #f43f5e',
+              padding: '2px 6px',
+              borderRadius: '4px'
+            }}>
+              ★ HIGH PRIORITY
+            </span>
+          )}
+
+          {/* Recurrence */}
+          {mission.recurrence && (
+            <span style={{
+              fontSize: '0.65rem',
+              color: '#67e8f9',
+              background: 'rgba(6, 182, 212, 0.12)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}>
+              <Repeat size={10} />
+              {mission.recurrence.toUpperCase()}
+            </span>
+          )}
 
           {/* Attribute Tag */}
           {mission.attribute && (
@@ -144,15 +203,61 @@ export const QuestCard = ({ mission, onEdit }) => {
             fontSize: '0.86rem',
             color: mission.completed ? '#64748b' : '#cbd5e1',
             lineHeight: 1.45,
-            marginBottom: '0.75rem'
+            marginBottom: '0.65rem'
           }}>
             {mission.description}
           </p>
         )}
 
+        {/* Subtasks Checklist */}
+        {subtasks.length > 0 && (
+          <div style={{
+            margin: '0.65rem 0',
+            padding: '0.65rem 0.85rem',
+            background: 'rgba(0, 0, 0, 0.35)',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.06)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span className="font-arcade" style={{ fontSize: '0.58rem', color: '#67e8f9', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <ListChecks size={12} /> SUBTASKS
+              </span>
+              <span className="font-mono" style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                {completedSubtasksCount}/{subtasks.length} Completed
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              {subtasks.map((st) => (
+                <div
+                  key={st.id}
+                  onClick={() => toggleSubtask(mission.id, st.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                    color: st.completed ? '#64748b' : '#cbd5e1',
+                    textDecoration: st.completed ? 'line-through' : 'none',
+                    userSelect: 'none'
+                  }}
+                >
+                  {st.completed ? (
+                    <CheckSquare size={14} color="#10b981" />
+                  ) : (
+                    <Square size={14} color="#64748b" />
+                  )}
+                  <span>{st.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Score & Rewards Bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
             <span className="font-arcade" style={{
               fontSize: '0.62rem',
               color: '#06b6d4',
@@ -160,8 +265,8 @@ export const QuestCard = ({ mission, onEdit }) => {
               padding: '3px 8px',
               borderRadius: '4px',
               border: '1px solid rgba(6, 182, 212, 0.3)'
-            }}>
-              +{mission.rewardXp} XP
+            }} title={`Base: ${mission.rewardXp} XP + INT Perk (${intBonusPct}%)`}>
+              +{calculatedXp} XP {intBonusPct > 0 && `(+${intBonusPct}% INT)`}
             </span>
 
             <span className="font-arcade" style={{

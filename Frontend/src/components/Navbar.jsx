@@ -9,29 +9,36 @@ import {
   Volume2, 
   VolumeX, 
   Flame, 
-  PlaySquare, 
-  Home 
+  Home, 
+  Backpack, 
+  History, 
+  Shield, 
+  Sparkles,
+  Zap
 } from 'lucide-react';
-import { useGame, calculateXpRequired } from '../context/GameContext.jsx';
+import { useGame, calculateXpRequired, getRankTier } from '../context/GameContext.jsx';
 import { soundEffects } from '../services/soundEffects.js';
 
 export const Navbar = () => {
   const { 
     profile, 
     missions, 
+    inventory,
     activeTab, 
     setActiveTab, 
     crtEnabled, 
     toggleCrt, 
     isMuted, 
     toggleMute,
-    getComboMultiplier
+    getComboMultiplier,
+    isServerOnline
   } = useGame();
 
   const xpNeeded = calculateXpRequired(profile.level);
   const xpPercent = Math.min(100, Math.round((profile.xp / xpNeeded) * 100)) || 0;
   const activeMissionsCount = missions.filter((m) => !m.completed).length;
   const combo = getComboMultiplier(profile.streak);
+  const tierInfo = getRankTier(profile.level);
 
   const handleNavClick = (tabKey) => {
     soundEffects.playClick();
@@ -44,10 +51,25 @@ export const Navbar = () => {
       key: 'missions', 
       label: 'ARCADE STAGES', 
       icon: Gamepad2, 
-      badge: activeMissionsCount > 0 ? activeMissionsCount : null 
+      badge: activeMissionsCount > 0 ? activeMissionsCount : null,
+      badgeColor: '#f43f5e'
     },
     { key: 'shop', label: 'PRIZE COUNTER', icon: Ticket },
-    { key: 'attributes', label: 'P1 ATTRIBUTES', icon: User },
+    { 
+      key: 'inventory', 
+      label: 'P1 INVENTORY', 
+      icon: Backpack, 
+      badge: inventory.length > 0 ? inventory.length : null,
+      badgeColor: '#06b6d4'
+    },
+    { 
+      key: 'attributes', 
+      label: 'P1 ATTRIBUTES', 
+      icon: User,
+      badge: profile.unspentSkillPoints > 0 ? `+${profile.unspentSkillPoints}` : null,
+      badgeColor: '#facc15'
+    },
+    { key: 'history', label: 'HISTORY & METRICS', icon: History },
     { key: 'leaderboard', label: 'HIGH SCORES', icon: Trophy },
     { key: 'settings', label: 'CABINET CONFIG', icon: Settings },
   ];
@@ -68,7 +90,7 @@ export const Navbar = () => {
     }}>
       {/* 1. ARCADE MARQUEE BRANDING */}
       <div style={{
-        padding: '1.4rem 1.25rem 1.15rem',
+        padding: '1.25rem 1.25rem 1.1rem',
         borderBottom: '2px solid rgba(244, 63, 94, 0.3)',
         display: 'flex',
         alignItems: 'center',
@@ -76,8 +98,8 @@ export const Navbar = () => {
         background: 'rgba(244, 63, 94, 0.05)'
       }}>
         <div style={{
-          width: '42px',
-          height: '42px',
+          width: '40px',
+          height: '40px',
           borderRadius: '8px',
           background: 'linear-gradient(135deg, #f43f5e 0%, #9f1239 100%)',
           display: 'flex',
@@ -86,11 +108,11 @@ export const Navbar = () => {
           boxShadow: '0 0 16px rgba(244, 63, 94, 0.6)',
           border: '1px solid #fda4af'
         }}>
-          <Gamepad2 size={24} color="#ffffff" />
+          <Gamepad2 size={22} color="#ffffff" />
         </div>
         <div>
           <h1 className="font-arcade" style={{
-            fontSize: '0.92rem',
+            fontSize: '0.9rem',
             color: '#ffffff',
             textShadow: '0 0 10px rgba(6, 182, 212, 0.8)',
             lineHeight: 1.25
@@ -103,26 +125,26 @@ export const Navbar = () => {
             letterSpacing: '0.12em',
             marginTop: '3px'
           }}>
-            1984 EDITION
+            1984 EDITION // {tierInfo.tier}
           </p>
         </div>
       </div>
 
       {/* 2. PLAYER 1 VITAL SHEET */}
       <div style={{
-        padding: '1.15rem',
-        margin: '0.85rem 1rem',
+        padding: '1rem',
+        margin: '0.75rem 0.85rem',
         background: 'rgba(18, 14, 32, 0.85)',
         border: '1px solid rgba(6, 182, 212, 0.4)',
         borderRadius: '10px',
         boxShadow: 'inset 0 0 14px rgba(0, 0, 0, 0.6)'
       }}>
         {/* P1 Header Row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.65rem' }}>
           <div style={{
-            fontSize: '1.6rem',
-            width: '42px',
-            height: '42px',
+            fontSize: '1.5rem',
+            width: '40px',
+            height: '40px',
             borderRadius: '6px',
             background: 'rgba(6, 182, 212, 0.15)',
             border: '2px solid #06b6d4',
@@ -135,11 +157,11 @@ export const Navbar = () => {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span className="font-arcade" style={{ fontSize: '0.72rem', color: '#ffffff' }}>
+              <span className="font-arcade" style={{ fontSize: '0.7rem', color: '#ffffff' }}>
                 {profile.name}
               </span>
               <span className="font-arcade" style={{
-                fontSize: '0.62rem',
+                fontSize: '0.6rem',
                 padding: '2px 6px',
                 borderRadius: '4px',
                 background: '#f43f5e',
@@ -149,7 +171,7 @@ export const Navbar = () => {
                 LVL {profile.level}
               </span>
             </div>
-            <p className="font-arcade" style={{ fontSize: '0.58rem', color: '#06b6d4', marginTop: '3px' }}>
+            <p className="font-arcade" style={{ fontSize: '0.56rem', color: '#06b6d4', marginTop: '3px' }}>
               {profile.callsign}
             </p>
           </div>
@@ -160,20 +182,20 @@ export const Navbar = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0.4rem 0.65rem',
+          padding: '0.35rem 0.55rem',
           background: 'rgba(0, 0, 0, 0.4)',
           borderRadius: '6px',
           border: '1px solid rgba(255, 255, 255, 0.08)',
-          marginBottom: '0.65rem',
+          marginBottom: '0.55rem',
         }}>
           <div>
-            <div style={{ fontSize: '0.62rem', color: '#94a3b8', textTransform: 'uppercase' }}>High Score</div>
-            <div className="font-arcade" style={{ fontSize: '0.78rem', color: '#facc15' }}>
+            <div style={{ fontSize: '0.58rem', color: '#94a3b8', textTransform: 'uppercase' }}>Score</div>
+            <div className="font-arcade" style={{ fontSize: '0.74rem', color: '#facc15' }}>
               {profile.score.toLocaleString()}
             </div>
           </div>
           <div style={{
-            fontSize: '0.62rem',
+            fontSize: '0.6rem',
             padding: '2px 6px',
             borderRadius: '4px',
             background: 'rgba(244, 63, 94, 0.2)',
@@ -186,10 +208,10 @@ export const Navbar = () => {
         </div>
 
         {/* Non-linear XP Bar */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', marginBottom: '3px' }}>
-            <span className="font-arcade" style={{ color: '#06b6d4', fontSize: '0.58rem' }}>XP PROGRESS</span>
-            <span className="font-mono" style={{ color: '#94a3b8', fontSize: '0.68rem' }}>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', marginBottom: '3px' }}>
+            <span className="font-arcade" style={{ color: '#06b6d4', fontSize: '0.55rem' }}>XP PROGRESS</span>
+            <span className="font-mono" style={{ color: '#94a3b8', fontSize: '0.65rem' }}>
               {profile.xp} / {xpNeeded} ({xpPercent}%)
             </span>
           </div>
@@ -210,31 +232,70 @@ export const Navbar = () => {
           </div>
         </div>
 
-        {/* Tickets Tally */}
+        {/* Badges Bar: Tickets, Streak Shields, Unspent Points */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          marginTop: '0.65rem',
-          paddingTop: '0.5rem',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '4px',
+          paddingTop: '0.45rem',
           borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-          fontSize: '0.72rem'
+          fontSize: '0.68rem'
         }}>
-          <Ticket size={14} color="#f43f5e" />
-          <span className="font-arcade" style={{ fontSize: '0.65rem', color: '#fda4af' }}>
-            {profile.tickets} TICKETS
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Ticket size={13} color="#f43f5e" />
+            <span className="font-arcade" style={{ fontSize: '0.62rem', color: '#fda4af' }}>
+              {profile.tickets} TIX
+            </span>
+          </div>
+
+          {profile.streakShields > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              color: '#34d399',
+              background: 'rgba(16, 185, 129, 0.15)',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              border: '1px solid rgba(16, 185, 129, 0.4)'
+            }} title="Active Streak Freeze Shield">
+              <Shield size={10} />
+              <span className="font-arcade" style={{ fontSize: '0.55rem' }}>
+                {profile.streakShields} SHIELD
+              </span>
+            </div>
+          )}
+
+          {profile.unspentSkillPoints > 0 && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              color: '#fef08a',
+              background: 'rgba(250, 204, 21, 0.2)',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              border: '1px solid #facc15'
+            }} title="Unspent Skill Points Ready!">
+              <Zap size={10} />
+              <span className="font-arcade" style={{ fontSize: '0.55rem' }}>
+                +{profile.unspentSkillPoints} PTS
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* 3. NAVIGATION LINKS */}
-      <nav style={{ flex: 1, padding: '0.5rem 0.85rem', overflowY: 'auto' }}>
+      <nav style={{ flex: 1, padding: '0.4rem 0.75rem', overflowY: 'auto' }}>
         <p className="font-arcade" style={{
-          fontSize: '0.58rem',
+          fontSize: '0.55rem',
           color: '#64748b',
           letterSpacing: '0.08em',
-          padding: '0.35rem 0.75rem',
-          marginBottom: '0.35rem'
+          padding: '0.25rem 0.75rem',
+          marginBottom: '0.25rem'
         }}>
           MAIN CONSOLE
         </p>
@@ -252,9 +313,9 @@ export const Navbar = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '0.7rem 0.85rem',
+                padding: '0.62rem 0.75rem',
                 borderRadius: '6px',
-                marginBottom: '0.35rem',
+                marginBottom: '0.25rem',
                 background: isActive 
                   ? 'linear-gradient(90deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.05) 100%)' 
                   : 'transparent',
@@ -279,20 +340,21 @@ export const Navbar = () => {
                 }
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Icon size={16} color={isActive ? '#06b6d4' : '#64748b'} />
-                <span className="font-arcade" style={{ fontSize: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <Icon size={15} color={isActive ? '#06b6d4' : '#64748b'} />
+                <span className="font-arcade" style={{ fontSize: '0.62rem' }}>
                   {item.label}
                 </span>
               </div>
 
               {item.badge && (
                 <span className="font-arcade" style={{
-                  fontSize: '0.6rem',
-                  padding: '2px 6px',
+                  fontSize: '0.58rem',
+                  padding: '2px 5px',
                   borderRadius: '4px',
-                  background: '#f43f5e',
-                  color: '#ffffff',
+                  background: item.badgeColor || '#f43f5e',
+                  color: item.badgeColor === '#facc15' ? '#000000' : '#ffffff',
+                  fontWeight: 700
                 }}>
                   {item.badge}
                 </span>
@@ -302,9 +364,39 @@ export const Navbar = () => {
         })}
       </nav>
 
-      {/* 4. FOOTER CONTROLS: CRT & AUDIO TOGGLES */}
+      {/* 4. BACKEND CONNECTION PILL */}
       <div style={{
-        padding: '0.85rem 1rem',
+        padding: '0.4rem 0.85rem',
+        margin: '0.25rem 0.85rem 0.4rem',
+        borderRadius: '6px',
+        background: isServerOnline ? 'rgba(16, 185, 129, 0.12)' : 'rgba(250, 204, 21, 0.1)',
+        border: isServerOnline ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(250, 204, 21, 0.3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: '0.62rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            background: isServerOnline ? '#10b981' : '#facc15',
+            boxShadow: isServerOnline ? '0 0 8px #10b981' : '0 0 8px #facc15',
+            display: 'inline-block'
+          }} />
+          <span className="font-arcade" style={{ color: isServerOnline ? '#34d399' : '#fef08a', fontSize: '0.52rem' }}>
+            PORT 8080
+          </span>
+        </div>
+        <span style={{ fontSize: '0.58rem', color: isServerOnline ? '#6ee7b7' : '#fde047', fontWeight: 700 }}>
+          {isServerOnline ? 'ONLINE' : 'CONNECTING...'}
+        </span>
+      </div>
+
+      {/* 5. FOOTER CONTROLS: CRT & AUDIO TOGGLES */}
+      <div style={{
+        padding: '0.75rem 0.85rem',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         background: '#070610',
         display: 'flex',
@@ -316,7 +408,7 @@ export const Navbar = () => {
           className="arcade-btn"
           style={{
             flex: 1,
-            fontSize: '0.62rem',
+            fontSize: '0.6rem',
             padding: '0.45rem',
             borderColor: crtEnabled ? '#06b6d4' : 'rgba(255, 255, 255, 0.15)',
             color: crtEnabled ? '#67e8f9' : '#64748b'
@@ -332,7 +424,7 @@ export const Navbar = () => {
           className="arcade-btn"
           style={{
             flex: 1,
-            fontSize: '0.62rem',
+            fontSize: '0.6rem',
             padding: '0.45rem',
             borderColor: !isMuted ? '#facc15' : 'rgba(255, 255, 255, 0.15)',
             color: !isMuted ? '#fef08a' : '#ef4444'
