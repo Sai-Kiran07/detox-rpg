@@ -1,9 +1,6 @@
 package rpg.backend.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
@@ -31,4 +28,7 @@ public class HistoryEntry {
     private String attributeGained;
 
     private String timestamp;
+
+    @ManyToOne
+    private User user;
 }

@@ -37,4 +37,7 @@ public class Mission {
     @ElementCollection
     @Builder.Default
     private List<Subtask> subtasks = new ArrayList<>();
+
+    @ManyToOne
+    private User user;
 }

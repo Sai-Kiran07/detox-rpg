@@ -39,4 +39,7 @@ public class InventoryItem {
 
     private String redeemedAt;
     private String acquiredAt;
+
+    @ManyToOne
+    private User user;
 }

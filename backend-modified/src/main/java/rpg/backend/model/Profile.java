@@ -39,4 +39,7 @@ public class Profile {
 
     @Embedded
     private Attributes attributes;
+
+    @OneToOne
+    private User user;
 }
