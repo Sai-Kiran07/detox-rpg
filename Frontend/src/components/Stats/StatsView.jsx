@@ -1,22 +1,12 @@
 import React from 'react';
 import { 
-  Trophy, 
   Flame, 
   Zap, 
-  Award, 
-  Cpu, 
-  CheckCircle, 
-  ShieldAlert, 
-  User,
-  Shield,
-  Calendar,
-  Sparkles,
-  Plus,
-  Percent,
-  Check,
-  Star
+  Shield, 
+  Plus, 
+  Check 
 } from 'lucide-react';
-import { useGame, calculateXpRequired, getRankTier } from '../../context/GameContext.jsx';
+import { useGame, getRankTier } from '../../context/GameContext.jsx';
 import { soundEffects } from '../../services/soundEffects.js';
 
 export const StatsView = () => {
@@ -36,21 +26,10 @@ export const StatsView = () => {
 
   const clearedMissions = missions.filter((m) => m.completed);
   const combo = getComboMultiplier(profile.streak);
-  const currentLevelXpNeeded = calculateXpRequired(profile.level);
   const tierInfo = getRankTier(profile.level);
 
   const todayStr = new Date().toDateString();
   const isCheckedInToday = profile.lastCheckInDate === todayStr;
-
-  // Next level projections
-  const nextLevels = [1, 2, 3, 4, 5].map((lvlOffset) => {
-    const targetLevel = profile.level + lvlOffset;
-    return {
-      level: targetLevel,
-      xpNeeded: calculateXpRequired(targetLevel),
-      tier: getRankTier(targetLevel),
-    };
-  });
 
   const attributes = [
     { 
@@ -105,14 +84,6 @@ export const StatsView = () => {
     },
   ];
 
-  // High score leaderboard simulated entries
-  const leaderboard = [
-    { rank: '1ST', name: 'CYBER-ACE', score: '18,450 PTS', badge: '🥇' },
-    { rank: '2ND', name: profile.name, score: `${profile.score.toLocaleString()} PTS`, badge: '🥈', isUser: true },
-    { rank: '3RD', name: 'PIXEL-MONK', score: '3,890 PTS', badge: '🥉' },
-    { rank: '4TH', name: 'GLITCH-FOX', score: '2,410 PTS', badge: '🎖️' },
-  ];
-
   // 7-day streak week dots simulation
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const todayDayIdx = (new Date().getDay() + 6) % 7; // Monday = 0
@@ -137,7 +108,7 @@ export const StatsView = () => {
           CHARACTER SHEET & ATTRIBUTES
         </h2>
         <p style={{ fontSize: '0.88rem', color: '#94a3b8', marginTop: '0.3rem' }}>
-          Real-time metrics tracking your 5 core Life RPG attributes, unallocated skill points, streak calendar, and leaderboard.
+          Real-time metrics tracking your 5 core Life RPG attributes, unallocated skill points, and streak calendar.
         </p>
       </div>
 
@@ -164,7 +135,7 @@ export const StatsView = () => {
             {profile.score.toLocaleString()}
           </div>
           <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '4px' }}>
-            Rank 2nd in Cabinet
+            Total Career Points
           </div>
         </div>
 
@@ -404,93 +375,6 @@ export const StatsView = () => {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* 6. Non-linear Leveling Curve Simulator & Leaderboard */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: '1.5rem'
-      }}>
-        {/* Leveling Curve Projections */}
-        <div className="arcade-card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-            <Cpu size={20} color="#06b6d4" />
-            <h3 className="font-arcade" style={{ fontSize: '0.88rem', color: '#ffffff' }}>
-              NON-LINEAR XP ROADMAP
-            </h3>
-          </div>
-          <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.4 }}>
-            Formula: <code>XP = floor(100 * Level^1.4)</code>. Each promotion awards +3 Skill Points and bonus tickets:
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {nextLevels.map((nl) => (
-              <div 
-                key={nl.level}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '6px 10px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  border: '1px solid rgba(255, 255, 255, 0.06)'
-                }}
-              >
-                <div>
-                  <span className="font-arcade" style={{ color: nl.tier.color, fontSize: '0.65rem' }}>
-                    LEVEL {nl.level}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginLeft: '6px' }}>
-                    ({nl.tier.name})
-                  </span>
-                </div>
-                <span className="font-mono" style={{ color: '#67e8f9' }}>
-                  {nl.xpNeeded} XP Needed
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* High Score Leaderboard */}
-        <div className="arcade-card" style={{ padding: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
-            <Trophy size={20} color="#facc15" />
-            <h3 className="font-arcade" style={{ fontSize: '0.88rem', color: '#ffffff' }}>
-              CABINET HIGH SCORES
-            </h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {leaderboard.map((row) => (
-              <div
-                key={row.rank}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.6rem 0.85rem',
-                  borderRadius: '6px',
-                  background: row.isUser ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  border: row.isUser ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.06)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1rem' }}>{row.badge}</span>
-                  <span className="font-arcade" style={{ fontSize: '0.68rem', color: '#ffffff' }}>
-                    {row.name} {row.isUser && '(YOU)'}
-                  </span>
-                </div>
-                <span className="font-arcade" style={{ fontSize: '0.68rem', color: '#facc15' }}>
-                  {row.score}
-                </span>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>

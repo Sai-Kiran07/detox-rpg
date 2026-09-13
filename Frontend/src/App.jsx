@@ -8,6 +8,7 @@ import { InventoryView } from './components/Inventory/InventoryView.jsx';
 import { StatsView } from './components/Stats/StatsView.jsx';
 import { HistoryView } from './components/History/HistoryView.jsx';
 import { SettingsView } from './components/Settings/SettingsView.jsx';
+import { AuthView } from './components/Auth/AuthView.jsx';
 import { FloatingRewards } from './components/FloatingRewards.jsx';
 import { LevelUpModal } from './components/LevelUpModal.jsx';
 import { Ticket, Trophy, Flame, Zap, Shield } from 'lucide-react';
@@ -27,7 +28,6 @@ const MainLayout = () => {
       case 'inventory':
         return <InventoryView />;
       case 'attributes':
-      case 'leaderboard':
         return <StatsView />;
       case 'history':
         return <HistoryView />;
@@ -46,7 +46,6 @@ const MainLayout = () => {
       case 'inventory': return 'P1 INVENTORY & VAULT';
       case 'attributes': return 'P1 ATTRIBUTE MATRIX';
       case 'history': return 'CAREER AUDIT & PROGRESS METRICS';
-      case 'leaderboard': return 'HIGH SCORE LEADERBOARD';
       case 'settings': return 'CABINET PREFERENCES';
       default: return 'ARCADE LIFE';
     }
@@ -192,10 +191,81 @@ const MainLayout = () => {
   );
 };
 
+const AppContent = () => {
+  const { isAuthenticated, activeTab, setActiveTab } = useGame();
+  const [authMode, setAuthMode] = React.useState('login');
+
+  // URL sync & strict authentication protection:
+  // "if user edits url to move another page , redirect it back to login page"
+  React.useEffect(() => {
+    const handleUrlSync = () => {
+      const path = (
+        window.location.pathname.replace(/^\/+/, '') || 
+        window.location.hash.replace(/^#\/?/, '')
+      ).toLowerCase();
+
+      if (!isAuthenticated) {
+        // If not logged in: redirect any edited URL back to /login (or /register)
+        if (path === 'register') {
+          setAuthMode('register');
+        } else {
+          setAuthMode('login');
+          if (window.location.pathname !== '/login' && window.location.hash !== '#/login') {
+            window.history.replaceState({}, '', '/login');
+          }
+        }
+      } else {
+        // If authenticated: if URL is /login or /register, redirect to /missions
+        if (path === 'login' || path === 'register' || !path) {
+          setActiveTab('missions');
+          window.history.replaceState({}, '', '/missions');
+        } else {
+          const validTabs = ['landing', 'missions', 'shop', 'inventory', 'attributes', 'history', 'settings'];
+          if (validTabs.includes(path)) {
+            setActiveTab(path);
+          }
+        }
+      }
+    };
+
+    handleUrlSync();
+    window.addEventListener('popstate', handleUrlSync);
+    window.addEventListener('hashchange', handleUrlSync);
+    return () => {
+      window.removeEventListener('popstate', handleUrlSync);
+      window.removeEventListener('hashchange', handleUrlSync);
+    };
+  }, [isAuthenticated, setActiveTab]);
+
+  // Synchronize browser address bar when activeTab changes
+  React.useEffect(() => {
+    if (isAuthenticated && activeTab) {
+      const currentPath = window.location.pathname.replace(/^\/+/, '').toLowerCase();
+      if (currentPath !== activeTab && activeTab !== 'login' && activeTab !== 'register') {
+        window.history.pushState({}, '', `/${activeTab}`);
+      }
+    }
+  }, [activeTab, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <AuthView 
+        defaultMode={authMode} 
+        onAuthSuccess={() => {
+          setActiveTab('missions');
+          window.history.replaceState({}, '', '/missions');
+        }} 
+      />
+    );
+  }
+
+  return <MainLayout />;
+};
+
 export default function App() {
   return (
     <GameProvider>
-      <MainLayout />
+      <AppContent />
     </GameProvider>
   );
 }

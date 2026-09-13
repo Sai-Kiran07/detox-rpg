@@ -8,6 +8,8 @@ const DEFAULT_API_URL = 'http://localhost:8080';
 
 const STORAGE_KEYS = {
   API_URL: 'arcade_api_url_v3',
+  AUTH_TOKEN: 'arcade_jwt_token_v3',
+  AUTH_USER: 'arcade_jwt_user_v3',
   PROFILE: 'arcade_profile_v3',
   MISSIONS: 'arcade_missions_v3',
   PRIZES: 'arcade_prizes_v3',
@@ -20,6 +22,7 @@ class ArcadeApiClient {
     this.baseUrl = (typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEYS.API_URL)) || DEFAULT_API_URL;
     this.isServerOnline = false;
     this.statusListeners = new Set();
+    this.authListeners = new Set();
 
     // Periodic non-blocking health check
     if (typeof window !== 'undefined') {
@@ -53,6 +56,120 @@ class ArcadeApiClient {
     }
   }
 
+  // =========================================================================
+  // AUTHENTICATION & JWT TOKEN MANAGEMENT
+  // =========================================================================
+  getToken() {
+
+    return typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN) : null;
+  }
+
+  setToken(token) {
+    if (typeof window !== 'undefined') {
+      if (token) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      }
+    }
+  }
+
+  getUsername() {
+    return typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.AUTH_USER) : null;
+  }
+
+  setUsername(username) {
+    if (typeof window !== 'undefined') {
+      if (username) {
+        localStorage.setItem(STORAGE_KEYS.AUTH_USER, username);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+      }
+    }
+  }
+
+  clearAuth() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+    }
+    this.notifyAuthChange(false);
+  }
+
+  isAuthenticated() {
+    return Boolean(this.getToken());
+  }
+
+  subscribeAuth(listener) {
+    this.authListeners.add(listener);
+    listener(this.isAuthenticated(), this.getUsername());
+    return () => this.authListeners.delete(listener);
+  }
+
+  notifyAuthChange(isAuth) {
+    this.authListeners.forEach((fn) => fn(isAuth, this.getUsername()));
+  }
+
+  // Register — NEW: POST /api/auth/register (Request: { username, password })
+  async register(username, password) {
+    const payload = { username, password };
+    try {
+      return await this.request('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      // Automatic fallback if backend mapped to /api/auth/signup or /auth/signup
+      try {
+        return await this.request('/api/auth/signup', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+      } catch {
+        try {
+          return await this.request('/auth/signup', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          throw err;
+        }
+      }
+    }
+  }
+
+  // Login — NEW: POST /api/auth/login (Request: { username, password }, Response: { token: "..." })
+  async login(username, password) {
+    const payload = { username, password };
+    let res;
+    try {
+      console.log("doing something")
+      res = await this.request('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+
+      });
+      console.log(res);
+    } catch (err) {
+      throw err;
+
+    }
+
+    const token = res.token || res.jwt || res.accessToken || (typeof res === 'string' ? res : null);
+    if (!token) {
+      throw new Error('Authentication response did not contain a valid JWT token.');
+    }
+
+    this.setToken(token);
+    this.setUsername(username);
+    this.notifyAuthChange(true);
+    return { success: true, token, username, ...res };
+  }
+
+  logout() {
+    this.clearAuth();
+  }
+
   // Quick health probe to http://localhost:8080/api/health
   async checkHealth() {
     try {
@@ -72,20 +189,24 @@ class ArcadeApiClient {
     }
   }
 
-  // HTTP Request Helper
+  // HTTP Request Helper with JWT Authorization header injection
   async request(endpoint, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+    const token = this.getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    };
 
     try {
       const res = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          ...(options.headers || {}),
-        },
+        headers,
       });
       clearTimeout(timeoutId);
 
@@ -95,7 +216,20 @@ class ArcadeApiClient {
         const text = await res.text();
         return text ? JSON.parse(text) : { success: true };
       }
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+
+      // Handle 401/403 unauthorized token expiration
+      if ((res.status === 401 || res.status === 403) && !endpoint.includes('/auth/')) {
+        this.clearAuth();
+      }
+
+      let errorMsg = `HTTP ${res.status}: ${res.statusText}`;
+      try {
+        const errJson = await res.json();
+        if (errJson.message) errorMsg = errJson.message;
+        else if (errJson.error) errorMsg = errJson.error;
+      } catch { }
+
+      throw new Error(errorMsg);
     } catch (err) {
       this.notifyStatus(false);
       throw err;
@@ -106,17 +240,20 @@ class ArcadeApiClient {
   // 1. PROFILE, ATTRIBUTES & STREAK (/api/profile)
   // =========================================================================
   async getProfile() {
+    console.log("getting profile")
     try {
       const remote = await this.request('/api/profile');
+      console.log(remote);
       if (remote) {
         localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(remote));
         return remote;
       }
       return null;
-    } catch {
+    } catch (err) {
+      console.log(err);
       const cached = localStorage.getItem(STORAGE_KEYS.PROFILE);
       if (cached) {
-        try { return JSON.parse(cached); } catch {}
+        try { return JSON.parse(cached); } catch { }
       }
       return null;
     }
@@ -181,7 +318,7 @@ class ArcadeApiClient {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
-        } catch {}
+        } catch { }
       }
       return [];
     }
@@ -227,7 +364,7 @@ class ArcadeApiClient {
   async deleteMission(id) {
     try {
       await this.request(`/api/missions/${id}`, { method: 'DELETE' });
-    } catch {}
+    } catch { }
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.MISSIONS) || '[]').filter((m) => m.id !== id);
     localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(list));
     return true;
@@ -312,7 +449,7 @@ class ArcadeApiClient {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
-        } catch {}
+        } catch { }
       }
       return [];
     }
@@ -371,7 +508,7 @@ class ArcadeApiClient {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
-        } catch {}
+        } catch { }
       }
       return [];
     }
@@ -416,7 +553,7 @@ class ArcadeApiClient {
         try {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) return parsed;
-        } catch {}
+        } catch { }
       }
       return [];
     }
@@ -447,7 +584,7 @@ class ArcadeApiClient {
   async deletePrize(id) {
     try {
       await this.request(`/api/prizes/${id}`, { method: 'DELETE' });
-    } catch {}
+    } catch { }
     const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRIZES) || '[]').filter((p) => p.id !== id);
     localStorage.setItem(STORAGE_KEYS.PRIZES, JSON.stringify(list));
     return true;

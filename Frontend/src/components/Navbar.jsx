@@ -3,7 +3,6 @@ import {
   Gamepad2,
   Ticket,
   User,
-  Trophy,
   Settings,
   Tv,
   Volume2,
@@ -14,7 +13,8 @@ import {
   History,
   Shield,
   Sparkles,
-  Zap
+  Zap,
+  LogOut
 } from 'lucide-react';
 import { useGame, calculateXpRequired, getRankTier } from '../context/GameContext.jsx';
 import { soundEffects } from '../services/soundEffects.js';
@@ -31,7 +31,9 @@ export const Navbar = () => {
     isMuted,
     toggleMute,
     getComboMultiplier,
-    isServerOnline
+    isServerOnline,
+    currentUser,
+    logout
   } = useGame();
 
   const xpNeeded = calculateXpRequired(profile.level);
@@ -70,7 +72,6 @@ export const Navbar = () => {
       badgeColor: '#facc15'
     },
     { key: 'history', label: 'HISTORY & METRICS', icon: History },
-    { key: 'leaderboard', label: 'HIGH SCORES', icon: Trophy },
     { key: 'settings', label: 'CABINET CONFIG', icon: Settings },
   ];
 
@@ -365,7 +366,7 @@ export const Navbar = () => {
       </nav>
 
       {/* 4. BACKEND CONNECTION PILL */}
-      <div style={{
+      {/* <div style={{
         padding: '0.45rem 0.85rem',
         margin: '0.25rem 0.85rem 0.4rem',
         borderRadius: '6px',
@@ -392,7 +393,7 @@ export const Navbar = () => {
         <span style={{ fontSize: '0.58rem', color: isServerOnline ? '#6ee7b7' : '#fde047', fontWeight: 700 }}>
           {isServerOnline ? 'ONLINE' : 'CONNECTING...'}
         </span>
-      </div>
+      </div> */}
 
       {/* 5. FOOTER CONTROLS: CRT & AUDIO TOGGLES */}
       <div style={{
@@ -433,6 +434,35 @@ export const Navbar = () => {
         >
           {isMuted ? <VolumeX size={12} /> : <Volume2 size={12} />}
           {!isMuted ? '8-BIT: ON' : 'MUTED'}
+        </button>
+      </div>
+
+      {/* 6. SIGN OUT ACTION */}
+      <div style={{
+        padding: '0.65rem 0.85rem',
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        background: '#070610',
+      }}>
+        <button
+          onClick={logout}
+          className="arcade-btn"
+          style={{
+            width: '100%',
+            fontSize: '0.62rem',
+            padding: '0.45rem',
+            color: '#fda4af',
+            borderColor: 'rgba(244, 63, 94, 0.4)',
+            background: 'rgba(244, 63, 94, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+          title="Sign out and lock arcade machine session"
+        >
+          <LogOut size={12} color="#f43f5e" />
+          <span>SIGN OUT {currentUser ? `[${currentUser.toUpperCase()}]` : ''}</span>
         </button>
       </div>
     </aside>

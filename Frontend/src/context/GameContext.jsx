@@ -80,6 +80,24 @@ export const GameProvider = ({ children }) => {
   const [levelUpData, setLevelUpData] = useState(null);
   const [isServerOnline, setIsServerOnline] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => api.isAuthenticated());
+  const [currentUser, setCurrentUser] = useState(() => api.getUsername());
+
+  // Subscribe to live Auth state changes
+  useEffect(() => {
+    const unsubscribeAuth = api.subscribeAuth((isAuth, username) => {
+      setIsAuthenticated(isAuth);
+      setCurrentUser(username);
+      if (!isAuth) {
+        setProfile(DEFAULT_PROFILE);
+        setMissions([]);
+        setPrizes([]);
+        setInventory([]);
+        setHistoryLog([]);
+      }
+    });
+    return () => unsubscribeAuth();
+  }, []);
 
   // Proactively purge any legacy mock data from localStorage
   useEffect(() => {
@@ -136,8 +154,13 @@ export const GameProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch real data dynamically from all API endpoints on mount
+  // Fetch real data dynamically from all API endpoints on mount (only when authenticated)
   const loadDataFromApi = useCallback(async () => {
+    if (!api.isAuthenticated()) {
+      setIsLoadingData(false);
+      return;
+    }
+
     setIsLoadingData(true);
     try {
       const [profileRes, missionsRes, prizesRes, inventoryRes, historyRes] = await Promise.allSettled([
@@ -181,6 +204,33 @@ export const GameProvider = ({ children }) => {
   useEffect(() => {
     loadDataFromApi();
   }, [loadDataFromApi]);
+
+  // Auth methods
+  const login = async (username, password) => {
+    const res = await api.login(username, password);
+    setIsAuthenticated(true);
+    setCurrentUser(username);
+    await loadDataFromApi();
+    return res;
+  };
+
+  const register = async (username, password) => {
+    return await api.register(username, password);
+  };
+
+  const logout = () => {
+    api.logout();
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setProfile(DEFAULT_PROFILE);
+    setMissions([]);
+    setPrizes([]);
+    setInventory([]);
+    setHistoryLog([]);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/login');
+    }
+  };
 
   // Activity log helper with API dispatch
   const addHistoryEntry = async (entry) => {
@@ -874,6 +924,11 @@ export const GameProvider = ({ children }) => {
         isServerOnline,
         isLoadingData,
         loadDataFromApi,
+        isAuthenticated,
+        currentUser,
+        login,
+        register,
+        logout,
       }}
     >
       {children}
