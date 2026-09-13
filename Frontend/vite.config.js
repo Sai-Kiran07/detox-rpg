@@ -9,7 +9,7 @@ export default defineConfig({
     open: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'https://rpg-backden.onrender.com',
         changeOrigin: true,
         secure: false,
       },

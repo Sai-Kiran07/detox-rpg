@@ -506,7 +506,7 @@ export const AuthView = ({ defaultMode = 'login', onAuthSuccess }) => {
           fontSize: '0.74rem',
           color: '#64748b'
         }}>
-          Protected by JWT Bearer Authentication. Requests dispatched to <code>http://localhost:8080</code>.
+          Protected by JWT Bearer Authentication. Requests dispatched to <code>Backend</code>.
         </div>
       </div>
     </div>
