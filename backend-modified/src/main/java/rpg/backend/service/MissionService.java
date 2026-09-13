@@ -1,10 +1,15 @@
 package rpg.backend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import rpg.backend.dto.UserRepository;
 import rpg.backend.model.Mission;
 import rpg.backend.model.Profile;
 import rpg.backend.model.Subtask;
+import rpg.backend.model.User;
 import rpg.backend.repository.MissionRepository;
 import rpg.backend.repository.ProfileRepository;
 
@@ -16,14 +21,37 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MissionService {
 
+    @Autowired
+    UserRepository userRepository;
+
     private final MissionRepository missionRepository;
     private final ProfileRepository profileRepository;
 
     public List<Mission> getMissions() {
-        return missionRepository.findAll();
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String username = authentication.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return missionRepository.findByUser(user);
     }
 
     public Mission createMission(Mission mission) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String username = authentication.getName();
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        mission.setUser(user);
+
         if (mission.getCompleted() == null) {
             mission.setCompleted(false);
         }

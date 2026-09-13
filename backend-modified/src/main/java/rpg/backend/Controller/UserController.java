@@ -2,7 +2,8 @@ package rpg.backend.Controller;
 
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -12,7 +13,10 @@ import rpg.backend.model.User;
 import rpg.backend.service.JwtService;
 import rpg.backend.service.UserService;
 
+import java.util.Map;
+
 @RestController
+@CrossOrigin("*")
 public class UserController {
 
     @Autowired
@@ -24,13 +28,14 @@ public class UserController {
     @Autowired
     JwtService jwtService;
 
-    @PostMapping("/register")
-    public User saveUser(@RequestBody User user){
+    @PostMapping("/api/auth/register")
+    public User saveUser(@RequestBody User user) {
+        System.out.println(user);
         return service.saveUser(user);
     }
 
     @GetMapping("/me")
-    public String currentUser(){
+    public String currentUser() {
         Authentication auth = SecurityContextHolder
                 .getContext()
                 .getAuthentication();
@@ -38,44 +43,25 @@ public class UserController {
         return auth.getName();
     }
 
-    @PostMapping("/login")
-    public String login(@RequestBody User user){
+    @PostMapping("/api/auth/login")
+    public Object login(@RequestBody User user) {
 
         Authentication auth = authenticationManager
                 .authenticate(new UsernamePasswordAuthenticationToken(
-                        user.getUsername(),user.getPassword()
+                        user.getUsername(), user.getPassword()
                 ));
 
 
-        if(auth.isAuthenticated()){
-            return jwtService.generateToken(user.getUsername());
+        if (auth.isAuthenticated()) {
+            String token = jwtService.generateToken(user.getUsername());
+
+            return ResponseEntity.ok(
+                    Map.of("token", token)
+            );
+
+
         }
-        return "Failed";
+        return new ResponseEntity<>(HttpStatus.FORBIDDEN);
     }
 
-
-    @GetMapping("/profile/{username}")
-    @PreAuthorize(       //alowed for any admin role or with same username
-            "hasAuthority('ROLE_ADMIN') || #username == authentication.name"
-    )
-
-    /**Check permission
-     ↓
-     If allowed → run method */
-    public String getProfile(
-            @PathVariable String username) {
-
-        return "profile";
-    }
-
-
-
-    /**execute the method but return only if authorised */
-//    @PostAuthorize(
-//            "returnObject.username == authentication.name"
-//    )
-//    public User getUser(Long id) {
-//
-//        return repo.findById(id).get();
-//    }
 }

@@ -1,9 +1,13 @@
 package rpg.backend.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import rpg.backend.model.Profile;
+import rpg.backend.model.User;
 import rpg.backend.repository.ProfileRepository;
+import rpg.backend.dto.UserRepository;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -14,9 +18,26 @@ import java.util.Locale;
 public class ProfileService {
 
     private final ProfileRepository profileRepository;
+    private final UserRepository userRepository;
+
+    private User getCurrentUser() {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        String username = authentication.getName();
+
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     public Profile getProfile() {
-        return profileRepository.findById(1L)
+        User user = getCurrentUser();
+
+        System.out.println("CURRENT USER ID = " + user.getId());
+        System.out.println("CURRENT USERNAME = " + user.getUsername());
+
+
+        return profileRepository.findByUser(user)
                 .orElseThrow(() -> new RuntimeException("Profile not found"));
     }
 

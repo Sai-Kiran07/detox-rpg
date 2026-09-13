@@ -5,7 +5,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import rpg.backend.dto.UserRepo;
+import rpg.backend.dto.UserRepository;
 import rpg.backend.model.User;
 import rpg.backend.model.UserDetailsImp;
 
@@ -14,12 +14,12 @@ public class MyUserdetailsService implements UserDetailsService {
 
 
     @Autowired
-    UserRepo repo;
+    UserRepository repo;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
-        User user = repo.findByUsername(username);
+        User user = repo.findByUsername(username).orElse(null);
         System.out.println("user verified");
 
         if (user == null){

@@ -3,14 +3,14 @@ package rpg.backend.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import rpg.backend.dto.UserRepo;
+import rpg.backend.dto.UserRepository;
 import rpg.backend.model.User;
 
 @Service
 public class UserService {
 
     @Autowired
-    UserRepo repo;
+    UserRepository repo;
 
     BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(12);
 
