@@ -189,14 +189,38 @@ export const ShopList = () => {
       </div>
 
       {/* 4. Prize Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
-        gap: '1.25rem'
-      }}>
-        {filteredPrizes.map((prize) => {
-          const finalCost = Math.max(1, Math.round(prize.cost * (1 - chaDiscountPercent / 100)));
-          const canAfford = profile.tickets >= finalCost;
+      {filteredPrizes.length === 0 ? (
+        <div 
+          className="arcade-card"
+          style={{
+            padding: '3.5rem 2rem',
+            textAlign: 'center',
+            border: '2px dashed rgba(244, 63, 94, 0.3)'
+          }}
+        >
+          <Ticket size={48} color="#f43f5e" style={{ margin: '0 auto 1rem' }} />
+          <h3 className="font-arcade" style={{ fontSize: '1rem', color: '#ffffff', marginBottom: '0.5rem' }}>
+            NO PRIZES IN THIS COUNTER CATEGORY
+          </h3>
+          <p style={{ color: '#94a3b8', fontSize: '0.88rem', maxWidth: '380px', margin: '0 auto 1.5rem' }}>
+            No prize inventory found. You can program a custom reward prize or stock items in your backend database.
+          </p>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="arcade-btn arcade-btn-primary"
+          >
+            <Plus size={16} /> PROGRAM CUSTOM PRIZE
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+          gap: '1.25rem'
+        }}>
+          {filteredPrizes.map((prize) => {
+            const finalCost = Math.max(1, Math.round(prize.cost * (1 - chaDiscountPercent / 100)));
+            const canAfford = profile.tickets >= finalCost;
 
           return (
             <div
@@ -342,7 +366,8 @@ export const ShopList = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Add Modal */}
       <AddItemModal

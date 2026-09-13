@@ -15,7 +15,7 @@ export const useGame = () => {
 
 // Non-linear XP formula: XP required for level L = Math.floor(100 * (L ** 1.4))
 export const calculateXpRequired = (level) => {
-  return Math.floor(100 * Math.pow(level, 1.4));
+  return Math.floor(100 * Math.pow(Math.max(1, level), 1.4));
 };
 
 // Rank milestone tiers
@@ -28,53 +28,48 @@ export const getRankTier = (level) => {
 };
 
 const STORAGE_KEYS = {
+  PROFILE: 'arcade_profile_v3',
+  MISSIONS: 'arcade_missions_v3',
+  PRIZES: 'arcade_prizes_v3',
+  INVENTORY: 'arcade_inventory_v3',
+  HISTORY: 'arcade_history_v3',
   CRT: 'arcade_crt_enabled',
 };
 
+// Neutral default profile skeleton (ZERO static dummy progress)
+const DEFAULT_PROFILE = {
+  name: 'PLAYER ONE',
+  callsign: 'ROOKIE',
+  level: 1,
+  xp: 0,
+  score: 0,
+  tickets: 0,
+  unspentSkillPoints: 0,
+  hp: 100,
+  maxHp: 100,
+  energy: 100,
+  maxEnergy: 100,
+  streak: 0,
+  streakShields: 0,
+  lastCheckInDate: null,
+  avatar: '🕹️',
+  attributes: {
+    INT: 10,
+    STR: 10,
+    AGI: 10,
+    END: 10,
+    CHA: 10,
+  },
+};
+
 export const GameProvider = ({ children }) => {
-  const [profile, setProfile] = useState(() => {
-    const cached = localStorage.getItem('arcade_profile_v3');
-    return cached ? JSON.parse(cached) : {
-      name: 'PLAYER ONE',
-      callsign: 'NEO-RAIDER',
-      level: 3,
-      xp: 180,
-      score: 4250,
-      tickets: 185,
-      unspentSkillPoints: 3,
-      hp: 90,
-      maxHp: 100,
-      energy: 85,
-      maxEnergy: 100,
-      streak: 5,
-      streakShields: 1,
-      lastCheckInDate: null,
-      avatar: '🕹️',
-      attributes: { INT: 14, STR: 11, AGI: 8, END: 12, CHA: 9 },
-    };
-  });
+  // Pure dynamic data states: initialized empty, loaded strictly from API
+  const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [missions, setMissions] = useState([]);
+  const [prizes, setPrizes] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [historyLog, setHistoryLog] = useState([]);
 
-  const [missions, setMissions] = useState(() => {
-    const cached = localStorage.getItem('arcade_missions_v3');
-    return cached ? JSON.parse(cached) : [];
-  });
-
-  const [prizes, setPrizes] = useState(() => {
-    const cached = localStorage.getItem('arcade_prizes_v3');
-    return cached ? JSON.parse(cached) : [];
-  });
-
-  const [inventory, setInventory] = useState(() => {
-    const cached = localStorage.getItem('arcade_inventory_v3');
-    return cached ? JSON.parse(cached) : [];
-  });
-
-  const [historyLog, setHistoryLog] = useState(() => {
-    const cached = localStorage.getItem('arcade_history_v3');
-    return cached ? JSON.parse(cached) : [];
-  });
-
-  const [isServerOnline, setIsServerOnline] = useState(false);
   const [activeTab, setActiveTab] = useState('landing');
   const [crtEnabled, setCrtEnabled] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CRT);
@@ -83,56 +78,128 @@ export const GameProvider = ({ children }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [floatingRewards, setFloatingRewards] = useState([]);
   const [levelUpData, setLevelUpData] = useState(null);
+  const [isServerOnline, setIsServerOnline] = useState(false);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // 1. Initial Data Fetch from Backend (http://localhost:8080)
+  // Proactively purge any legacy mock data from localStorage
   useEffect(() => {
-    const unsubscribe = api.subscribeStatus((online) => {
-      setIsServerOnline(online);
-    });
-
-    const loadBackendData = async () => {
-      try {
-        const [profData, misData, invData, histData, przData] = await Promise.all([
-          api.getProfile(),
-          api.getMissions(),
-          api.getInventory(),
-          api.getHistory(),
-          api.getPrizes(),
-        ]);
-
-        if (profData) setProfile(profData);
-        if (misData) setMissions(misData);
-        if (invData) setInventory(invData);
-        if (histData) setHistoryLog(histData);
-        if (przData) setPrizes(przData);
-      } catch (err) {
-        console.warn('Backend load notice (using resilient cache):', err);
+    try {
+      const storedMissions = localStorage.getItem(STORAGE_KEYS.MISSIONS);
+      if (storedMissions && storedMissions.includes('Cyber-Algorithm')) {
+        localStorage.removeItem(STORAGE_KEYS.MISSIONS);
       }
-    };
-
-    loadBackendData();
-    return () => unsubscribe();
+      const storedPrizes = localStorage.getItem(STORAGE_KEYS.PRIZES);
+      if (storedPrizes && storedPrizes.includes('Streak Freeze Shield')) {
+        localStorage.removeItem(STORAGE_KEYS.PRIZES);
+      }
+      const storedInv = localStorage.getItem(STORAGE_KEYS.INVENTORY);
+      if (storedInv && (storedInv.includes('inv-init') || storedInv.includes('Focus Visor'))) {
+        localStorage.removeItem(STORAGE_KEYS.INVENTORY);
+      }
+      const storedHistory = localStorage.getItem(STORAGE_KEYS.HISTORY);
+      if (storedHistory && storedHistory.includes('Speed Clean Quarters')) {
+        localStorage.removeItem(STORAGE_KEYS.HISTORY);
+      }
+    } catch {}
   }, []);
 
-  // Save CRT setting
+  // Sync to local cache
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
+  }, [profile]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MISSIONS, JSON.stringify(missions));
+  }, [missions]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PRIZES, JSON.stringify(prizes));
+  }, [prizes]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+  }, [inventory]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(historyLog));
+  }, [historyLog]);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.CRT, JSON.stringify(crtEnabled));
   }, [crtEnabled]);
 
-  // Log activity helper (pushes to backend & local state)
-  const addHistoryEntry = useCallback(async (entry) => {
+  // Subscribe to live API Server Status (target: http://localhost:8080)
+  useEffect(() => {
+    const unsubscribe = api.subscribeStatus((online) => {
+      setIsServerOnline(online);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch real data dynamically from all API endpoints on mount
+  const loadDataFromApi = useCallback(async () => {
+    setIsLoadingData(true);
+    try {
+      const [profileRes, missionsRes, prizesRes, inventoryRes, historyRes] = await Promise.allSettled([
+        api.getProfile(),
+        api.getMissions(),
+        api.getPrizes(),
+        api.getInventory(),
+        api.getHistory(),
+      ]);
+
+      if (profileRes.status === 'fulfilled' && profileRes.value) {
+        setProfile((prev) => ({
+          ...prev,
+          ...profileRes.value,
+          attributes: { ...prev.attributes, ...(profileRes.value.attributes || {}) },
+        }));
+      }
+
+      if (missionsRes.status === 'fulfilled' && Array.isArray(missionsRes.value)) {
+        setMissions(missionsRes.value);
+      }
+
+      if (prizesRes.status === 'fulfilled' && Array.isArray(prizesRes.value)) {
+        setPrizes(prizesRes.value);
+      }
+
+      if (inventoryRes.status === 'fulfilled' && Array.isArray(inventoryRes.value)) {
+        setInventory(inventoryRes.value);
+      }
+
+      if (historyRes.status === 'fulfilled' && Array.isArray(historyRes.value)) {
+        setHistoryLog(historyRes.value);
+      }
+    } catch (err) {
+      console.warn('Initial API data fetch note:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDataFromApi();
+  }, [loadDataFromApi]);
+
+  // Activity log helper with API dispatch
+  const addHistoryEntry = async (entry) => {
     const newEntry = {
       id: `h-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       timestamp: new Date().toISOString(),
       ...entry,
     };
     setHistoryLog((prev) => [newEntry, ...prev.slice(0, 99)]);
-    await api.createHistoryEntry(newEntry);
-  }, []);
+    try {
+      await api.createHistoryEntry(newEntry);
+    } catch (err) {
+      console.warn('Could not sync history entry to backend:', err);
+    }
+  };
 
   // Compute Effective Attributes (Base + Equipped Gear Bonuses)
   const effectiveAttributes = useMemo(() => {
-    const base = { ...(profile.attributes || { INT: 10, STR: 10, AGI: 10, END: 10, CHA: 10 }) };
+    const base = { ...(profile.attributes || DEFAULT_PROFILE.attributes) };
     inventory
       .filter((item) => item.equipped && item.statBonus)
       .forEach((item) => {
@@ -157,19 +224,23 @@ export const GameProvider = ({ children }) => {
   }, [inventory]);
 
   // Gameplay Modifiers based on Attributes:
+  // INT: +1% XP per INT point
   const intXpMultiplier = useMemo(() => {
     return 1 + (effectiveAttributes.INT || 10) * 0.01;
   }, [effectiveAttributes.INT]);
 
+  // CHA: Haggle Discount at Shop: 0.5% per CHA point (capped at 25%)
   const chaDiscountPercent = useMemo(() => {
     return Math.min(25, Math.floor((effectiveAttributes.CHA || 10) * 0.5));
   }, [effectiveAttributes.CHA]);
 
+  // STR: Score multiplier: +0.8% score per STR point
   const strScoreMultiplier = useMemo(() => {
     return 1 + (effectiveAttributes.STR || 10) * 0.008;
   }, [effectiveAttributes.STR]);
 
-  const getComboMultiplier = (streak) => {
+  // Calculate Combo Multiplier based on daily streak + AGI boost
+  const getComboMultiplier = (streak = 0) => {
     const agiBonus = (effectiveAttributes.AGI || 8) >= 12 ? 0.1 : 0;
     if (streak >= 14) return { mult: Number((1.5 + agiBonus).toFixed(2)), label: `SUPER COMBO x${(1.5 + agiBonus).toFixed(2)}`, color: '#f43f5e' };
     if (streak >= 7) return { mult: Number((1.3 + agiBonus).toFixed(2)), label: `MEGA COMBO x${(1.3 + agiBonus).toFixed(2)}`, color: '#facc15' };
@@ -263,7 +334,9 @@ export const GameProvider = ({ children }) => {
     };
   };
 
-  // 1. Complete Mission Action (Synced with Backend)
+  // =========================================================================
+  // 1. MISSIONS CRUD & ACTIONS (Connected to /api/missions)
+  // =========================================================================
   const completeMission = async (mission, e) => {
     if (mission.completed) return;
 
@@ -291,9 +364,9 @@ export const GameProvider = ({ children }) => {
 
     const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, finalXpGain);
 
-    const currentAttrVal = profile.attributes[mission.attribute] || 10;
+    const currentAttrVal = (profile.attributes && profile.attributes[mission.attribute]) || 10;
     const updatedAttributes = {
-      ...profile.attributes,
+      ...(profile.attributes || DEFAULT_PROFILE.attributes),
       [mission.attribute]: currentAttrVal + (mission.attributeGain || 1),
     };
 
@@ -303,13 +376,13 @@ export const GameProvider = ({ children }) => {
       callsign: levelRes.callsign,
       xp: levelRes.xp,
       score: profile.score + finalScoreGain,
-      tickets: profile.tickets + mission.rewardTickets + levelRes.ticketBonus,
+      tickets: profile.tickets + (mission.rewardTickets || 0) + levelRes.ticketBonus,
       unspentSkillPoints: profile.unspentSkillPoints + levelRes.skillPointsBonus,
       attributes: updatedAttributes,
     };
 
+    // Optimistic local state update
     setProfile(updatedProfile);
-
     setMissions((prev) =>
       prev.map((m) =>
         m.id === mission.id
@@ -322,15 +395,6 @@ export const GameProvider = ({ children }) => {
       )
     );
 
-    // Sync with backend API
-    await api.completeMission(mission.id, {
-      xpEarned: finalXpGain,
-      scoreEarned: finalScoreGain,
-      ticketsEarned: mission.rewardTickets,
-    });
-
-    await api.updateProfile(updatedProfile);
-
     addHistoryEntry({
       type: 'stage_clear',
       title: mission.title,
@@ -341,9 +405,20 @@ export const GameProvider = ({ children }) => {
       ticketsEarned: mission.rewardTickets,
       attributeGained: `+${mission.attributeGain || 1} ${mission.attribute}`,
     });
+
+    // Backend API Endpoints Execution
+    try {
+      await api.completeMission(mission.id, {
+        rewardXp: finalXpGain,
+        rewardScore: finalScoreGain,
+        rewardTickets: mission.rewardTickets,
+      });
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error syncing mission completion to API:', err);
+    }
   };
 
-  // Uncomplete mission
   const uncompleteMission = async (mission) => {
     soundEffects.playClick();
     setMissions((prev) =>
@@ -357,10 +432,14 @@ export const GameProvider = ({ children }) => {
           : m
       )
     );
-    await api.uncompleteMission(mission.id);
+
+    try {
+      await api.uncompleteMission(mission.id);
+    } catch (err) {
+      console.warn('Error syncing mission uncomplete to API:', err);
+    }
   };
 
-  // Toggle Subtask
   const toggleSubtask = async (missionId, subtaskId) => {
     soundEffects.playClick();
     setMissions((prev) =>
@@ -377,32 +456,63 @@ export const GameProvider = ({ children }) => {
         };
       })
     );
-    await api.toggleSubtask(missionId, subtaskId);
+
+    try {
+      await api.toggleSubtask(missionId, subtaskId);
+    } catch (err) {
+      console.warn('Error syncing subtask toggle to API:', err);
+    }
   };
 
-  // Add / Forge new mission
   const addMission = async (missionData) => {
     soundEffects.playCoin();
-    const created = await api.createMission(missionData);
-    setMissions((prev) => [created, ...prev.filter((m) => m.id !== created.id)]);
-    return created;
+    const newMission = {
+      id: `m-${Date.now()}`,
+      completed: false,
+      priority: 'normal',
+      recurrence: 'daily',
+      subtasks: [],
+      ...missionData,
+    };
+    setMissions((prev) => [newMission, ...prev]);
+
+    try {
+      const created = await api.createMission(newMission);
+      if (created && created.id && created.id !== newMission.id) {
+        setMissions((prev) => prev.map((m) => (m.id === newMission.id ? created : m)));
+      }
+      return created || newMission;
+    } catch (err) {
+      console.warn('Error creating mission in API:', err);
+      return newMission;
+    }
   };
 
-  // Update mission
   const updateMission = async (id, updates) => {
     soundEffects.playClick();
     setMissions((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
-    await api.updateMission(id, updates);
+
+    try {
+      await api.updateMission(id, updates);
+    } catch (err) {
+      console.warn('Error updating mission in API:', err);
+    }
   };
 
-  // Delete mission
   const deleteMission = async (id) => {
     soundEffects.playClick();
     setMissions((prev) => prev.filter((m) => m.id !== id));
-    await api.deleteMission(id);
+
+    try {
+      await api.deleteMission(id);
+    } catch (err) {
+      console.warn('Error deleting mission in API:', err);
+    }
   };
 
-  // 2. Buy item from Prize Counter (with Charisma Haggle Discount & Backend sync)
+  // =========================================================================
+  // 2. PRIZE COUNTER & ECONOMY (Connected to /api/prizes)
+  // =========================================================================
   const buyPrize = async (prize, e) => {
     const discountedCost = Math.max(1, Math.round(prize.cost * (1 - chaDiscountPercent / 100)));
 
@@ -452,10 +562,6 @@ export const GameProvider = ({ children }) => {
 
     setInventory((prev) => [newItem, ...prev]);
 
-    // Backend sync
-    await api.buyPrize(prize.id, { discountedCost, chaDiscountPercent });
-    await api.updateProfile(updatedProfile);
-
     addHistoryEntry({
       type: 'prize_claimed',
       title: prize.title,
@@ -463,24 +569,49 @@ export const GameProvider = ({ children }) => {
       ticketsSpent: discountedCost,
     });
 
+    try {
+      await api.buyPrize(prize.id, { cost: discountedCost, item: newItem });
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error syncing prize purchase to API:', err);
+    }
+
     return true;
   };
 
-  // Add custom prize
   const addPrize = async (prizeData) => {
     soundEffects.playCoin();
-    const created = await api.createPrize(prizeData);
-    setPrizes((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
+    const newPrize = {
+      id: `p-${Date.now()}`,
+      category: 'treat',
+      ...prizeData,
+    };
+    setPrizes((prev) => [newPrize, ...prev]);
+
+    try {
+      const created = await api.createPrize(newPrize);
+      if (created && created.id && created.id !== newPrize.id) {
+        setPrizes((prev) => prev.map((p) => (p.id === newPrize.id ? created : p)));
+      }
+    } catch (err) {
+      console.warn('Error creating prize in API:', err);
+    }
   };
 
-  // Delete prize
   const deletePrize = async (id) => {
     soundEffects.playClick();
     setPrizes((prev) => prev.filter((p) => p.id !== id));
-    await api.deletePrize(id);
+
+    try {
+      await api.deletePrize(id);
+    } catch (err) {
+      console.warn('Error deleting prize in API:', err);
+    }
   };
 
-  // 3. Inventory Actions: Toggle Equip Relic / Gear
+  // =========================================================================
+  // 3. INVENTORY SYSTEM (Connected to /api/inventory)
+  // =========================================================================
   const toggleEquipItem = async (itemId) => {
     soundEffects.playCheckmark();
     setInventory((prev) =>
@@ -495,10 +626,14 @@ export const GameProvider = ({ children }) => {
         return item;
       })
     );
-    await api.toggleEquipItem(itemId);
+
+    try {
+      await api.toggleEquipItem(itemId);
+    } catch (err) {
+      console.warn('Error toggling equip in API:', err);
+    }
   };
 
-  // 4. Inventory Actions: Use Consumable Buff
   const useInventoryItem = async (itemId) => {
     const targetItem = inventory.find((i) => i.id === itemId);
     if (!targetItem) return;
@@ -508,18 +643,18 @@ export const GameProvider = ({ children }) => {
     let updatedProfile = { ...profile };
 
     if (targetItem.effect === '+1 Streak Shield' || targetItem.title.includes('Shield')) {
-      updatedProfile = { ...updatedProfile, streakShields: updatedProfile.streakShields + 1 };
+      updatedProfile = { ...profile, streakShields: (profile.streakShields || 0) + 1 };
       setProfile(updatedProfile);
       triggerFloatingReward('+1 STREAK SHIELD!', 'score', window.innerWidth / 2, window.innerHeight / 2);
     } else if (targetItem.effect === '+100 Instant XP' || targetItem.title.includes('Elixir')) {
       const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, 100);
       updatedProfile = {
-        ...updatedProfile,
+        ...profile,
         level: levelRes.level,
         callsign: levelRes.callsign,
         xp: levelRes.xp,
-        tickets: updatedProfile.tickets + levelRes.ticketBonus,
-        unspentSkillPoints: updatedProfile.unspentSkillPoints + levelRes.skillPointsBonus,
+        tickets: profile.tickets + levelRes.ticketBonus,
+        unspentSkillPoints: profile.unspentSkillPoints + levelRes.skillPointsBonus,
       };
       setProfile(updatedProfile);
       triggerFloatingReward('+100 XP CONSUMED!', 'xp', window.innerWidth / 2, window.innerHeight / 2);
@@ -527,19 +662,22 @@ export const GameProvider = ({ children }) => {
       triggerFloatingReward('BUFF ACTIVATED!', 'score', window.innerWidth / 2, window.innerHeight / 2);
     }
 
-    setInventory((prev) => prev.filter((i) => i.id !== itemId));
-
-    await api.useInventoryItem(itemId);
-    await api.updateProfile(updatedProfile);
-
     addHistoryEntry({
       type: 'item_used',
       title: `Used ${targetItem.title}`,
       details: targetItem.description,
     });
+
+    setInventory((prev) => prev.filter((i) => i.id !== itemId));
+
+    try {
+      await api.useInventoryItem(itemId);
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error syncing item use in API:', err);
+    }
   };
 
-  // 5. Inventory Actions: Redeem Real-World Voucher
   const redeemVoucher = async (itemId) => {
     soundEffects.playCoin();
     setInventory((prev) =>
@@ -550,32 +688,59 @@ export const GameProvider = ({ children }) => {
       )
     );
     triggerFloatingReward('VOUCHER REDEEMED! ENJOY!', 'score', window.innerWidth / 2, window.innerHeight / 2);
-    await api.redeemVoucher(itemId);
+
+    try {
+      await api.redeemVoucher(itemId);
+    } catch (err) {
+      console.warn('Error redeeming voucher in API:', err);
+    }
   };
 
-  // 6. Character Sheet: Allocate Skill Point to Attribute
+  // =========================================================================
+  // 4. CHARACTER SHEET & ATTRIBUTES (Connected to /api/profile)
+  // =========================================================================
   const allocateSkillPoint = async (attributeKey) => {
     if (profile.unspentSkillPoints <= 0) {
       soundEffects.playError();
       return;
     }
     soundEffects.playCoin();
-    const updated = {
+    const updatedProfile = {
       ...profile,
       unspentSkillPoints: profile.unspentSkillPoints - 1,
       attributes: {
-        ...profile.attributes,
-        [attributeKey]: (profile.attributes[attributeKey] || 10) + 1,
+        ...(profile.attributes || DEFAULT_PROFILE.attributes),
+        [attributeKey]: ((profile.attributes && profile.attributes[attributeKey]) || 10) + 1,
       },
     };
-    setProfile(updated);
+    setProfile(updatedProfile);
     triggerFloatingReward(`+1 ${attributeKey} UPGRADED!`, 'xp', window.innerWidth / 2, window.innerHeight / 2);
 
-    await api.allocateSkillPoint(attributeKey);
-    await api.updateProfile(updated);
+    try {
+      await api.allocateSkillPoint(attributeKey);
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error allocating skill point in API:', err);
+    }
   };
 
-  // 7. Streak System: Claim Daily Check-In
+  const updateProfileIdentity = async (updates) => {
+    const updatedProfile = {
+      ...profile,
+      ...updates,
+    };
+    setProfile(updatedProfile);
+
+    try {
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error updating profile identity in API:', err);
+    }
+  };
+
+  // =========================================================================
+  // 5. STREAK SYSTEM & DAILY CHECK-IN (Connected to /api/profile/check-in)
+  // =========================================================================
   const claimDailyCheckIn = async () => {
     const todayStr = new Date().toDateString();
     if (profile.lastCheckInDate === todayStr) {
@@ -596,7 +761,7 @@ export const GameProvider = ({ children }) => {
       console.warn(e);
     }
 
-    const newStreak = profile.streak + 1;
+    const newStreak = (profile.streak || 0) + 1;
     const ticketReward = 20 + newStreak * 5;
     const xpReward = 50;
 
@@ -604,7 +769,7 @@ export const GameProvider = ({ children }) => {
 
     const levelRes = checkNonLinearLevelUp(profile.xp, profile.level, xpReward);
 
-    const updated = {
+    const updatedProfile = {
       ...profile,
       streak: newStreak,
       lastCheckInDate: todayStr,
@@ -614,10 +779,8 @@ export const GameProvider = ({ children }) => {
       callsign: levelRes.callsign,
       unspentSkillPoints: profile.unspentSkillPoints + levelRes.skillPointsBonus,
     };
-    setProfile(updated);
 
-    await api.claimDailyCheckIn();
-    await api.updateProfile(updated);
+    setProfile(updatedProfile);
 
     addHistoryEntry({
       type: 'daily_checkin',
@@ -627,33 +790,43 @@ export const GameProvider = ({ children }) => {
       xpEarned: xpReward,
     });
 
+    try {
+      await api.claimDailyCheckIn();
+      await api.updateProfile(updatedProfile);
+    } catch (err) {
+      console.warn('Error syncing daily check-in to API:', err);
+    }
+
     return true;
   };
 
-  // Toggle CRT Scanlines
+  // CRT & Audio toggles
   const toggleCrt = () => {
     soundEffects.playClick();
     setCrtEnabled(!crtEnabled);
   };
 
-  // Toggle Mute
   const toggleMute = () => {
     const muted = soundEffects.toggleMute();
     setIsMuted(muted);
   };
 
-  // Close Level Up Modal
   const closeLevelUpModal = () => {
     setLevelUpData(null);
   };
 
-  // Reset demo data
+  // Reset demo / wipe data
   const resetArcadeData = () => {
-    localStorage.removeItem('arcade_profile_v3');
-    localStorage.removeItem('arcade_missions_v3');
-    localStorage.removeItem('arcade_prizes_v3');
-    localStorage.removeItem('arcade_inventory_v3');
-    localStorage.removeItem('arcade_history_v3');
+    api.resetAllData();
+    localStorage.removeItem('arcade_profile_v2');
+    localStorage.removeItem('arcade_missions_v2');
+    localStorage.removeItem('arcade_prizes_v2');
+    localStorage.removeItem('arcade_inventory_v2');
+    setProfile(DEFAULT_PROFILE);
+    setMissions([]);
+    setPrizes([]);
+    setInventory([]);
+    setHistoryLog([]);
     window.location.reload();
   };
 
@@ -681,7 +854,6 @@ export const GameProvider = ({ children }) => {
         chaDiscountPercent,
         strScoreMultiplier,
         getComboMultiplier,
-        isServerOnline,
         completeMission,
         uncompleteMission,
         toggleSubtask,
@@ -695,9 +867,13 @@ export const GameProvider = ({ children }) => {
         useInventoryItem,
         redeemVoucher,
         allocateSkillPoint,
+        updateProfileIdentity,
         claimDailyCheckIn,
         addHistoryEntry,
         resetArcadeData,
+        isServerOnline,
+        isLoadingData,
+        loadDataFromApi,
       }}
     >
       {children}

@@ -19,7 +19,8 @@ export const SettingsView = () => {
     toggleCrt, 
     isMuted, 
     toggleMute, 
-    resetArcadeData 
+    resetArcadeData,
+    updateProfileIdentity
   } = useGame();
 
   const [alias, setAlias] = useState(profile.name);
@@ -27,12 +28,21 @@ export const SettingsView = () => {
   const [avatar, setAvatar] = useState(profile.avatar);
   const [savedStatus, setSavedStatus] = useState(false);
 
-  const handleSaveIdentity = (e) => {
+  // Sync state if profile loads from API later
+  React.useEffect(() => {
+    setAlias(profile.name);
+    setCallsign(profile.callsign);
+    setAvatar(profile.avatar);
+  }, [profile.name, profile.callsign, profile.avatar]);
+
+  const handleSaveIdentity = async (e) => {
     e.preventDefault();
     soundEffects.playCoin();
-    profile.name = alias;
-    profile.callsign = callsign;
-    profile.avatar = avatar;
+    await updateProfileIdentity({
+      name: alias,
+      callsign: callsign,
+      avatar: avatar,
+    });
     setSavedStatus(true);
     setTimeout(() => setSavedStatus(false), 2000);
   };

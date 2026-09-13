@@ -1,18 +1,18 @@
 import React from 'react';
-import { 
-  Gamepad2, 
-  Ticket, 
-  User, 
-  Trophy, 
-  Settings, 
-  Tv, 
-  Volume2, 
-  VolumeX, 
-  Flame, 
-  Home, 
-  Backpack, 
-  History, 
-  Shield, 
+import {
+  Gamepad2,
+  Ticket,
+  User,
+  Trophy,
+  Settings,
+  Tv,
+  Volume2,
+  VolumeX,
+  Flame,
+  Home,
+  Backpack,
+  History,
+  Shield,
   Sparkles,
   Zap
 } from 'lucide-react';
@@ -20,15 +20,15 @@ import { useGame, calculateXpRequired, getRankTier } from '../context/GameContex
 import { soundEffects } from '../services/soundEffects.js';
 
 export const Navbar = () => {
-  const { 
-    profile, 
-    missions, 
+  const {
+    profile,
+    missions,
     inventory,
-    activeTab, 
-    setActiveTab, 
-    crtEnabled, 
-    toggleCrt, 
-    isMuted, 
+    activeTab,
+    setActiveTab,
+    crtEnabled,
+    toggleCrt,
+    isMuted,
     toggleMute,
     getComboMultiplier,
     isServerOnline
@@ -47,24 +47,24 @@ export const Navbar = () => {
 
   const navItems = [
     { key: 'landing', label: 'PROJECT OVERVIEW', icon: Home },
-    { 
-      key: 'missions', 
-      label: 'ARCADE STAGES', 
-      icon: Gamepad2, 
+    {
+      key: 'missions',
+      label: 'ARCADE STAGES',
+      icon: Gamepad2,
       badge: activeMissionsCount > 0 ? activeMissionsCount : null,
       badgeColor: '#f43f5e'
     },
     { key: 'shop', label: 'PRIZE COUNTER', icon: Ticket },
-    { 
-      key: 'inventory', 
-      label: 'P1 INVENTORY', 
-      icon: Backpack, 
+    {
+      key: 'inventory',
+      label: 'P1 INVENTORY',
+      icon: Backpack,
       badge: inventory.length > 0 ? inventory.length : null,
       badgeColor: '#06b6d4'
     },
-    { 
-      key: 'attributes', 
-      label: 'P1 ATTRIBUTES', 
+    {
+      key: 'attributes',
+      label: 'P1 ATTRIBUTES',
       icon: User,
       badge: profile.unspentSkillPoints > 0 ? `+${profile.unspentSkillPoints}` : null,
       badgeColor: '#facc15'
@@ -316,11 +316,11 @@ export const Navbar = () => {
                 padding: '0.62rem 0.75rem',
                 borderRadius: '6px',
                 marginBottom: '0.25rem',
-                background: isActive 
-                  ? 'linear-gradient(90deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.05) 100%)' 
+                background: isActive
+                  ? 'linear-gradient(90deg, rgba(6, 182, 212, 0.22) 0%, rgba(6, 182, 212, 0.05) 100%)'
                   : 'transparent',
-                border: isActive 
-                  ? '1px solid #06b6d4' 
+                border: isActive
+                  ? '1px solid #06b6d4'
                   : '1px solid transparent',
                 color: isActive ? '#ffffff' : '#94a3b8',
                 cursor: 'pointer',
@@ -366,7 +366,7 @@ export const Navbar = () => {
 
       {/* 4. BACKEND CONNECTION PILL */}
       <div style={{
-        padding: '0.4rem 0.85rem',
+        padding: '0.45rem 0.85rem',
         margin: '0.25rem 0.85rem 0.4rem',
         borderRadius: '6px',
         background: isServerOnline ? 'rgba(16, 185, 129, 0.12)' : 'rgba(250, 204, 21, 0.1)',
