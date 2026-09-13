@@ -4,7 +4,7 @@
 // Pure backend-driven data layer (NO STATIC DUMMY DATA DISPLAYED)
 // ==========================================================================
 
-const DEFAULT_API_URL = 'http://localhost:8080';
+const DEFAULT_API_URL = 'detox-7qvm4y3yv-tejas-9f5b.vercel.app';
 
 const STORAGE_KEYS = {
   API_URL: 'arcade_api_url_v3',

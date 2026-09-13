@@ -9,7 +9,7 @@ export default defineConfig({
     open: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'detox-7qvm4y3yv-tejas-9f5b.vercel.app',
         changeOrigin: true,
         secure: false,
       },
